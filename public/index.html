@@ -526,13 +526,14 @@
       socket = io();
       socket.on('connect', () => {
         console.log(`Connected for ${CURRENT_TABLE_NAME}. Socket ID:`, socket.id);
+        socket.emit('get-table-status', { tableId: CURRENT_TABLE_ID });
       });
 
-      // SYNC ON CONNECT/REFRESH: If the server shows this table is idle or 0, clear leftover localStorage
+      // AUTO-PURGE LISTENER: Sync with server. If table is available/idle/total=0, clear local cache.
       socket.on('tables-sync', (allTables) => {
         if (!allTables) return;
         const currentTableData = allTables[CURRENT_TABLE_ID];
-        if (currentTableData && (currentTableData.status === 'idle' || currentTableData.total === 0)) {
+        if (currentTableData && (currentTableData.status === 'idle' || currentTableData.total === 0 || currentTableData.orders.length === 0)) {
           if (confirmedOrders.length > 0) {
             clearCustomerSession();
           }
@@ -690,6 +691,10 @@
       initMemoryGame();
       drawWheel();
       updateCartUI();
+
+      if (socket) {
+        socket.emit('get-table-status', { tableId: CURRENT_TABLE_ID });
+      }
     };
 
     function renderMenuItems() {

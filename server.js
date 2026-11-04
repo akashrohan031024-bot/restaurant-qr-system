@@ -78,6 +78,7 @@ function resetTableState(tableId) {
     io.emit(`session-reset-${id}`);
     io.emit(`table-paid-${id}`, { method: 'CASH' });
     io.emit('table-cleared', { tableId: id });
+    io.emit('table-updated', { tableId: id, table: tables[id] });
     io.emit('tables-sync', tables);
   }
 }
@@ -85,6 +86,11 @@ function resetTableState(tableId) {
 io.on('connection', (socket) => {
   // Sync state immediately upon connection
   socket.emit('tables-sync', tables);
+
+  // Status check on page load/reconnect
+  socket.on('get-table-status', ({ tableId }) => {
+    socket.emit('tables-sync', tables);
+  });
 
   // Single order placement handler (NO DUPLICATES)
   socket.on('order-placed', (data) => {
@@ -178,7 +184,7 @@ io.on('connection', (socket) => {
 
   // Pay Bill & Push to Google Sheet
   socket.on('pay-bill', ({ tableId, method }) => {
-    const id = tableId || 1;
+    const id = parseInt(tableId) || 1;
     const table = tables[id];
     if (table) {
       table.paid = true;
@@ -212,12 +218,12 @@ io.on('connection', (socket) => {
         message: `Table ${id} paid ₹${finalAmount} via ${method || 'UPI'}!` 
       });
 
-      // Clear table state
+      // Clear table state and broadcast to clients
       resetTableState(id);
     }
   });
 
-  // Reset Table Handlers (Catching all common floor-side events)
+  // Reset Table Handlers
   socket.on('reset-table', ({ tableId }) => {
     resetTableState(tableId);
   });
