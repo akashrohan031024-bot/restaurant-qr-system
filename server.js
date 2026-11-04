@@ -182,47 +182,42 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Pay Bill & Push to Google Sheet
-  socket.on('pay-bill', ({ tableId, method }) => {
-    const id = parseInt(tableId) || 1;
-    const table = tables[id];
-    if (table) {
-      table.paid = true;
-      table.status = 'paid';
-      table.billRequested = false;
-      table.cashRequested = false;
-      io.emit('table-paid', { tableId: id, method: method}); // 'upi' or 'cash'
+ // Pay Bill & Push to Google Sheet
+    socket.on('pay-bill', ({ tableId, method }) => {
+        const id = parseInt(tableId) || 1;
+        const table = tables[id];
+        if (table) {
+            table.paid = true;
+            table.status = 'paid';
+            table.billRequested = false;
+            table.cashRequested = false;
+            io.emit('table-paid', { tableId: id, method: method });
 
-      const allItems = table.orders.flatMap(o => o.items);
-      const itemsSummary = allItems
-        .map(i => `${i.qty || 1}x ${i.name}`)
-        .join(', ') || 'Dine-in Order';
+            const allItems = table.orders.flatMap(o => o.items);
+            const itemsSummary = allItems
+                .map(i => `${i.qty || 1}x ${i.name}`)
+                .join(', ') || 'Dine-in Order';
 
-      const now = new Date();
-      const finalAmount = (table.total * 1.05).toFixed(2);
+            const now = new Date();
+            const finalAmount = (table.total * 1.05).toFixed(2);
 
-      logToGoogleSheet({
-        type: 'PAYMENT',
-        sheet: 'Payment History',
-        date: now.toISOString().split('T')[0],
-        time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        tableNo: `Table ${id}`,
-        orderId: table.orders[0]?.orderId || `#${Math.floor(1000 + Math.random() * 9000)}`,
-        orderDetails: itemsSummary,
-        paymentMethod: method || 'UPI',
-        totalAmount: finalAmount
-      });
+            logToGoogleSheet({
+                type: 'PAYMENT',
+                date: now.toISOString().split('T')[0],
+                time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+                table: `Table ${id}`,
+                orderId: table.orders[0]?.orderId || `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+                orderItems: itemsSummary,
+                paymentMethod: method || 'UPI',
+                totalAmount: finalAmount
+            });
 
-      io.emit('staff-alert', { 
-        type: 'paid', 
-        tableId: id, 
-        message: `Table ${id} paid ₹${finalAmount} via ${method || 'UPI'}!` 
-      });
-
-      // Clear table state and broadcast to clients
-      resetTableState(id);
-    }
-  });
+            // Clear table orders after logging so new orders start fresh
+            table.orders = [];
+            table.total = 0;
+            io.emit('tables-sync', tables);
+        }
+    });
 
   // Reset Table Handlers
   socket.on('reset-table', ({ tableId }) => {
