@@ -500,7 +500,13 @@
 
     const STORAGE_KEY = `triveni_table_${CURRENT_TABLE_ID}_orders`;
 
-    // HELPER: Clear customer session, localStorage, and cart UI completely
+    let currentCategory = 'all';
+    let searchQuery = '';
+    let cart = {}; 
+    let confirmedOrders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); 
+    let activeUpiUrl = '';
+
+    // CORE HELPER: Purges local storage and resets all UI amounts to 0
     function clearCustomerSession(message) {
       localStorage.removeItem(STORAGE_KEY);
       confirmedOrders = [];
@@ -522,19 +528,29 @@
         console.log(`Connected for ${CURRENT_TABLE_NAME}. Socket ID:`, socket.id);
       });
 
-      // LISTENER: Cash or UPI bill paid confirmation from staff/floor dashboard
-      socket.on(`table-paid-${CURRENT_TABLE_ID}`, (data) => {
-        clearCustomerSession('Payment confirmed by staff! Tab cleared.');
+      // SYNC ON CONNECT/REFRESH: If the server shows this table is idle or 0, clear leftover localStorage
+      socket.on('tables-sync', (allTables) => {
+        if (!allTables) return;
+        const currentTableData = allTables[CURRENT_TABLE_ID];
+        if (currentTableData && (currentTableData.status === 'idle' || currentTableData.total === 0)) {
+          if (confirmedOrders.length > 0) {
+            clearCustomerSession();
+          }
+        }
       });
 
-      // LISTENER: Table reset by floor staff
+      // REAL-TIME LISTENER: Triggered when Cash/UPI payment is confirmed by Floor staff
+      socket.on(`table-paid-${CURRENT_TABLE_ID}`, () => {
+        clearCustomerSession('Payment confirmed by floor staff! Tab cleared.');
+      });
+
+      // REAL-TIME LISTENER: Table reset by Floor staff
       socket.on(`session-reset-${CURRENT_TABLE_ID}`, () => {
         clearCustomerSession('Table session has been reset.');
       });
 
-      // LISTENER: General table cleared signal
       socket.on('table-cleared', (data) => {
-        if (data && data.tableId == CURRENT_TABLE_ID) {
+        if (data && parseInt(data.tableId) === CURRENT_TABLE_ID) {
           clearCustomerSession('Table cleared by staff.');
         }
       });
@@ -665,12 +681,6 @@
       { id: 'cnt22', name: 'Hara Bara Cutlet', category: 'continental', price: 99, desc: 'Healthy pan-seared green pea and spinach patties.', badge: 'Healthy', rating: '4.7', image: 'All Dieshes/Continental/Hara Bara Cutlet.jpg', icon: '🧆' }
     ];
 
-    let currentCategory = 'all';
-    let searchQuery = '';
-    let cart = {}; 
-    let confirmedOrders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); 
-    let activeUpiUrl = '';
-
     window.onload = function () {
       document.getElementById('currentTableDisplay').innerText = CURRENT_TABLE_NAME;
       document.getElementById('tabModalTableLabel').innerText = `Table ${CURRENT_TABLE_ID}`;
@@ -689,7 +699,7 @@
       const filtered = MENU_ITEMS.filter(item => {
         const matchesCategory = currentCategory === 'all' || item.category === currentCategory;
         const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            item.desc.toLowerCase().includes(searchQuery.toLowerCase());
+                              item.desc.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
       });
 
@@ -1033,7 +1043,6 @@
       showToast(`Captain notified! Waiter arriving at Table ${CURRENT_TABLE_ID} momentarily.`, 'fa-solid fa-bell-concierge');
     }
 
-    // STRICT SINGLE-EMISSION ORDER LOGIC (PREVENTS KDS DUPLICATES)
     function requestDineInOrder() {
       const pendingIds = Object.keys(cart);
       if (pendingIds.length === 0) {
@@ -1069,7 +1078,6 @@
         timestamp: currentTime
       };
 
-      // ONLY emit 'order-placed' to avoid duplicate KDS tickets
       if (socket) {
         socket.emit('order-placed', orderPayload);
       }

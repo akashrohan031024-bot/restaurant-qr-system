@@ -71,8 +71,19 @@ const tables = {
   6: { status: 'idle', total: 0, orders: [], waiterCalled: false, billRequested: false, cashRequested: false, paid: false }
 };
 
+function resetTableState(tableId) {
+  const id = parseInt(tableId) || 1;
+  if (tables[id]) {
+    tables[id] = { status: 'idle', total: 0, orders: [], waiterCalled: false, billRequested: false, cashRequested: false, paid: false };
+    io.emit(`session-reset-${id}`);
+    io.emit(`table-paid-${id}`, { method: 'CASH' });
+    io.emit('table-cleared', { tableId: id });
+    io.emit('tables-sync', tables);
+  }
+}
+
 io.on('connection', (socket) => {
-  // Sync state to the connecting client
+  // Sync state immediately upon connection
   socket.emit('tables-sync', tables);
 
   // Single order placement handler (NO DUPLICATES)
@@ -98,7 +109,6 @@ io.on('connection', (socket) => {
 
       table.orders.push(newOrder);
 
-      // Broadcast ONCE to Kitchen Display Screen and Floor management
       io.emit('new-kitchen-order', newOrder);
       io.emit('table-updated', { tableId, table });
       io.emit('tables-sync', tables);
@@ -151,7 +161,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle Customer Choosing Cash
+  // Customer chooses Cash
   socket.on('request-cash-payment', ({ tableId, table, total }) => {
     const id = tableId || 1;
     if (tables[id]) {
@@ -202,19 +212,20 @@ io.on('connection', (socket) => {
         message: `Table ${id} paid ₹${finalAmount} via ${method || 'UPI'}!` 
       });
 
-      // Reset internal table state
-      table.total = 0;
-      table.orders = [];
-
-      // Broadcast clearing events to customer and floor screens
-      io.emit(`table-paid-${id}`, { method: method || 'CASH' });
-      io.emit(`session-reset-${id}`);
-      io.emit('table-cleared', { tableId: id });
-      io.emit('tables-sync', tables);
+      // Clear table state
+      resetTableState(id);
     }
   });
 
-  // Log Expense Socket
+  // Reset Table Handlers (Catching all common floor-side events)
+  socket.on('reset-table', ({ tableId }) => {
+    resetTableState(tableId);
+  });
+
+  socket.on('clear-table', ({ tableId }) => {
+    resetTableState(tableId);
+  });
+
   socket.on('log-expense', async (data) => {
     const now = new Date();
     await logToGoogleSheet({
@@ -226,18 +237,6 @@ io.on('connection', (socket) => {
       amount: parseFloat(data.amount)
     });
     io.emit('tables-sync', tables);
-  });
-
-  // Reset Table
-  socket.on('reset-table', ({ tableId }) => {
-    const id = tableId || 1;
-    if (tables[id]) {
-      tables[id] = { status: 'idle', total: 0, orders: [], waiterCalled: false, billRequested: false, cashRequested: false, paid: false };
-      io.emit(`session-reset-${id}`);
-      io.emit(`table-paid-${id}`, { method: 'RESET' });
-      io.emit('table-cleared', { tableId: id });
-      io.emit('tables-sync', tables);
-    }
   });
 
   socket.on('get-wifi', () => {
