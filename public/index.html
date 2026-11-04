@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Triveni - Pure Veg Restaurant | Smart Dine-In</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Socket.io Client -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              gold: '#F59E0B',
+              amber: '#D97706',
+              deepGold: '#B45309',
+              green: '#10B981',
+              darkGreen: '#047857',
+              bgDark: '#0E1116',
+              cardDark: '#161B22',
+              surface: '#21262D',
+              border: '#30363D'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            serif: ['"Playfair Display"', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0E1116; }
+    ::-webkit-scrollbar-thumb { background: #30363D; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #F59E0B; }
+
+    .glass-card {
+      background: rgba(22, 27, 34, 0.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(245, 158, 11, 0.16);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.65);
+    }
+    .glass-card:hover {
+      border-color: rgba(245, 158, 11, 0.4);
+      transform: translateY(-2px);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .gold-gradient-bg {
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    }
+
+    .veg-dot-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid #10B981;
+      border-radius: 3px;
+      background: rgba(14, 17, 22, 0.85);
+      backdrop-filter: blur(4px);
+    }
+    .veg-dot-badge::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10B981;
+    }
+
+    .call-waiter-pulse {
+      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+      animation: pulse-ring 2s infinite cubic-bezier(0.66, 0, 0, 1);
+    }
+    @keyframes pulse-ring {
+      to { box-shadow: 0 0 0 16px rgba(245, 158, 11, 0); }
+    }
+
+    .memory-card { perspective: 1000px; }
+    .memory-inner { transition: transform 0.4s; transform-style: preserve-3d; }
+    .memory-inner.flipped { transform: rotateY(180deg); }
+    .memory-front, .memory-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .memory-back { transform: rotateY(180deg); }
+  </style>
+</head>
+
+<body class="bg-[#0A0D12] text-slate-100 font-sans min-h-screen flex justify-center selection:bg-amber-500 selection:text-black">
+
+  <main class="w-full max-w-md min-h-screen bg-[#0E1116] flex flex-col relative pb-32 shadow-2xl border-x border-[#21262D]">
+    
+    <!-- TOP STICKY STATUS & TABLE BAR -->
+    <header class="sticky top-0 z-30 bg-[#0E1116]/95 backdrop-blur-md px-4 py-3 border-b border-[#21262D] flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 font-bold text-xs border border-amber-500/30">
+          <i class="fa-solid fa-utensils text-xs"></i>
+        </span>
+        <div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold leading-tight">Dine-In Station</div>
+          <div class="text-xs font-extrabold text-amber-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="currentTableDisplay">Table #01</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="triggerCallWaiter()" class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:text-amber-200 hover:bg-amber-500/30 border border-amber-500/40 transition active:scale-95">
+          <i class="fa-solid fa-bell-concierge text-amber-400"></i>
+          <span>Call Waiter</span>
+        </button>
+
+        <button onclick="openTabModal()" class="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 transition active:scale-95">
+          <i class="fa-solid fa-receipt text-amber-400"></i>
+          <span id="headerTotalBadge">₹0.00</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- PROMINENT FLOATING CALL WAITER BUTTON -->
+    <div class="fixed bottom-20 right-4 z-40 max-w-md">
+      <button onclick="triggerCallWaiter()" class="call-waiter-pulse flex items-center gap-2.5 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-black px-4 py-3 rounded-full font-extrabold text-xs shadow-2xl border-2 border-yellow-300 active:scale-95 transition">
+        <span class="w-2.5 h-2.5 rounded-full bg-black animate-ping"></span>
+        <i class="fa-solid fa-bell-concierge text-sm"></i>
+        <span>Need Help? Call Waiter</span>
+      </button>
+    </div>
+
+    <!-- MAIN HERO BRANDING CARD -->
+    <section class="p-4">
+      <div class="relative overflow-hidden rounded-2xl p-5 border border-amber-500/25 bg-gradient-to-br from-[#1A1F28] via-[#161B22] to-[#0d151c] shadow-lg">
+        <div class="absolute -right-8 -top-8 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute -left-8 -bottom-8 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col items-center text-center">
+          <div class="relative mb-2">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-600 via-yellow-500 to-amber-300 p-[1px] shadow-lg shadow-amber-500/20 flex items-center justify-center">
+              <div class="w-full h-full bg-[#12161E] rounded-2xl flex items-center justify-center">
+                <i class="fa-solid fa-spa text-2xl text-amber-400"></i>
+              </div>
+            </div>
+            <span class="absolute -bottom-1 -right-2 bg-emerald-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-emerald-400/50 flex items-center gap-0.5">
+              <span class="w-1.5 h-1.5 bg-emerald-300 rounded-full"></span> 100% VEG
+            </span>
+          </div>
+
+          <h1 class="text-2xl font-serif font-bold text-white tracking-wide">HOTEL TRIVENI</h1>
+          <p class="text-[11px] uppercase tracking-widest text-amber-400/90 font-medium mt-0.5">
+            Pure Veg Restaurant • Chamarajanagar
+          </p>
+          <p class="text-xs italic text-slate-300 mt-1 font-serif">"Where Flavours Flow Together"</p>
+
+          <div class="grid grid-cols-3 gap-2 w-full mt-4 pt-3 border-t border-slate-700/60">
+            <a href="https://www.instagram.com/hotel_trivenii?srtk=MWN6Ymd2bGQ2bHZhMg==" target="_blank" rel="noopener noreferrer" 
+               class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-800/80 hover:bg-pink-900/30 border border-slate-700/80 hover:border-pink-500/40 text-slate-300 transition active:scale-95 group">
+              <i class="fa-brands fa-instagram text-base text-pink-400 group-hover:scale-110 transition"></i>
+              <span class="text-[10px] font-semibold mt-1">Instagram</span>
+            </a>
+
+            <a href="https://maps.app.goo.gl/nLwSdu5rog3DVc7QA?g_st=ac" target="_blank" rel="noopener noreferrer" 
+               class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-800/80 hover:bg-amber-900/30 border border-slate-700/80 hover:border-amber-500/40 text-slate-300 transition active:scale-95 group">
+              <div class="flex items-center text-amber-400 text-xs">
+                <i class="fa-solid fa-star"></i>
+                <i class="fa-solid fa-location-dot ml-1 text-red-400"></i>
+              </div>
+              <span class="text-[10px] font-semibold mt-1">Review Us</span>
+            </a>
+
+            <button onclick="openWifiModal()"
+               class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-800/80 hover:bg-emerald-900/30 border border-slate-700/80 hover:border-emerald-500/40 text-slate-300 transition active:scale-95 group">
+              <i class="fa-solid fa-wifi text-base text-emerald-400 group-hover:scale-110 transition"></i>
+              <span class="text-[10px] font-semibold mt-1">Free Wi-Fi</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WAIT TIME BUSTER -->
+    <section class="px-4 mb-2">
+      <div onclick="switchView('games')" class="cursor-pointer relative overflow-hidden rounded-xl p-3 bg-gradient-to-r from-amber-950/60 via-slate-800 to-emerald-950/50 border border-amber-500/40 flex items-center justify-between hover:border-amber-400 transition shadow-md active:scale-[0.98]">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shadow-inner border border-amber-500/30">
+            <i class="fa-solid fa-gamepad"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-white">Food Boredom Buster</span>
+              <span class="text-[9px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-extrabold">Instant Play</span>
+            </div>
+            <p class="text-[11px] text-slate-300">Pass wait time: Veggie Match & Spin Wheel!</p>
+          </div>
+        </div>
+        <div class="text-amber-400 text-sm">
+          <i class="fa-solid fa-chevron-right"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTENT VIEWS: MENU -->
+    <div id="viewContainer" class="flex-1 flex flex-col">
+      <section id="menuView" class="flex-1 flex flex-col">
+        
+        <!-- CATEGORY TABS -->
+        <div class="sticky top-[57px] z-20 bg-[#0E1116]/95 backdrop-blur-md px-4 py-2 border-y border-[#21262D]">
+          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
+            <button onclick="filterCategory('all')" id="tab-all" class="category-btn active px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-amber-500 text-black shadow-md shadow-amber-500/20 transition">
+              <i class="fa-solid fa-layer-group mr-1.5"></i> All Dishes
+            </button>
+            <button onclick="filterCategory('breakfast')" id="tab-breakfast" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
+              🥞 Breakfast
+            </button>
+            <button onclick="filterCategory('main')" id="tab-main" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
+              🥘 Main Course
+            </button>
+            <button onclick="filterCategory('rice')" id="tab-rice" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
+              🍚 Rice Items
+            </button>
+            <button onclick="filterCategory('chinese')" id="tab-chinese" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
+              🍜 Chinese & Fast
+            </button>
+            <button onclick="filterCategory('continental')" id="tab-continental" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
+              🍕 Continental & Pasta
+            </button>
+          </div>
+        </div>
+
+        <div class="px-4 pt-3 pb-1">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+            <input type="text" id="menuSearch" oninput="handleMenuSearch()" placeholder="Search Masala Dose, Paneer, Rice, Pizza..." 
+                   class="w-full bg-[#161B22] border border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition">
+            <button onclick="clearSearch()" id="clearSearchBtn" class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="itemsContainer" class="p-4 space-y-3.5"></div>
+      </section>
+
+      <section id="gamesView" class="hidden p-4 space-y-5">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-dice text-amber-400"></i> Waiting Zone Arcade
+            </h2>
+            <p class="text-[11px] text-slate-400">Play while kitchen chefs prepare your food!</p>
+          </div>
+          <button onclick="switchView('menu')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-amber-400 font-semibold border border-slate-700">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Back to Menu
+          </button>
+        </div>
+
+        <div class="rounded-2xl p-4 bg-[#161B22] border border-amber-500/20 shadow-md">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="text-xs font-bold text-amber-400 uppercase tracking-wide">Game 1: Quick Flip</div>
+              <h3 class="text-sm font-bold text-white">Veggie Food Memory Match</h3>
+            </div>
+            <div class="text-right">
+              <span id="memoryScore" class="text-xs font-bold text-emerald-400">Pairs: 0/6</span>
+              <button onclick="initMemoryGame()" class="block text-[10px] text-slate-400 hover:text-amber-400 underline">Restart</button>
+            </div>
+          </div>
+          <div id="memoryGrid" class="grid grid-cols-4 gap-2"></div>
+        </div>
+
+        <div class="rounded-2xl p-4 bg-[#161B22] border border-emerald-500/20 shadow-md text-center">
+          <div class="text-xs font-bold text-emerald-400 uppercase tracking-wide mb-1">Game 2: Fun Fortune</div>
+          <h3 class="text-sm font-bold text-white mb-2">Chef's Lucky Surprise Wheel</h3>
+          <p class="text-[11px] text-slate-400 mb-3">Spin for a chef's special surprise or discount!</p>
+          
+          <div class="relative w-48 h-48 mx-auto my-2 flex items-center justify-center">
+            <div class="absolute -top-2 z-20 text-amber-400 text-xl filter drop-shadow">
+              <i class="fa-solid fa-caret-down"></i>
+            </div>
+            <canvas id="wheelCanvas" width="190" height="190" class="rounded-full shadow-lg border-2 border-amber-500/40"></canvas>
+          </div>
+
+          <button onclick="spinWheel()" id="spinBtn" class="mt-3 px-6 py-2 rounded-xl gold-gradient-bg text-black font-bold text-xs shadow-md shadow-amber-500/20 active:scale-95 transition">
+            <i class="fa-solid fa-arrows-rotate mr-1.5"></i> Spin Wheel Now
+          </button>
+          <div id="wheelResult" class="mt-2 text-xs font-bold text-amber-300 min-h-[1.5rem]"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- FLOATING CART BAR -->
+    <div id="floatingCart" class="fixed bottom-16 left-0 right-0 max-w-md mx-auto px-4 z-40 transition-all duration-300 transform translate-y-32 opacity-0 pointer-events-none">
+      <div onclick="openTabModal()" class="cursor-pointer glass-card !bg-amber-600/95 text-black px-4 py-3 rounded-2xl flex items-center justify-between shadow-2xl border border-amber-300/40 active:scale-98">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-black/20 text-white flex items-center justify-center font-bold text-sm">
+            <span id="floatingCartCount">0</span>
+          </div>
+          <div>
+            <div class="text-xs font-extrabold text-white leading-tight">View Your Order Tab</div>
+            <div class="text-[11px] text-amber-100 font-semibold" id="floatingCartSummary">0 items selected</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 text-white font-extrabold text-sm">
+          <span id="floatingCartTotal">₹0</span>
+          <i class="fa-solid fa-chevron-right text-xs"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM APP NAVIGATION DOCK -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0E1116]/95 backdrop-blur-lg border-t border-[#21262D] z-30 px-6 py-2.5 flex items-center justify-between">
+      <button onclick="switchView('menu')" id="navMenuBtn" class="flex flex-col items-center text-amber-400 transition">
+        <i class="fa-solid fa-book-open text-base"></i>
+        <span class="text-[10px] font-bold mt-0.5">Dine Menu</span>
+      </button>
+
+      <button onclick="switchView('games')" id="navGamesBtn" class="flex flex-col items-center text-slate-400 hover:text-amber-400 transition">
+        <i class="fa-solid fa-gamepad text-base"></i>
+        <span class="text-[10px] font-medium mt-0.5">Play Games</span>
+      </button>
+
+      <button onclick="openTabModal()" class="flex flex-col items-center text-slate-400 hover:text-amber-400 transition relative">
+        <i class="fa-solid fa-receipt text-base"></i>
+        <span class="text-[10px] font-medium mt-0.5">My Tab</span>
+        <span id="navCartDot" class="hidden absolute top-0 right-1 w-2 h-2 rounded-full bg-amber-400"></span>
+      </button>
+
+      <a href="https://maps.app.goo.gl/nLwSdu5rog3DVc7QA?g_st=ac" target="_blank" class="flex flex-col items-center text-slate-400 hover:text-amber-400 transition">
+        <i class="fa-solid fa-star text-base"></i>
+        <span class="text-[10px] font-medium mt-0.5">Feedback</span>
+      </a>
+    </nav>
+
+    <!-- MODAL: ORDER TAB & CHECKOUT -->
+    <div id="tabModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end justify-center">
+      <div class="w-full max-w-md bg-[#161B22] border-t border-amber-500/30 rounded-t-3xl p-5 max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h3 class="text-sm font-bold text-white"><span id="tabModalTableLabel">Table 1</span> Live Order Tab</h3>
+          </div>
+          <button onclick="closeTabModal()" class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-sm">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div id="cartItemList" class="flex-1 overflow-y-auto py-3 space-y-3"></div>
+
+        <div class="pt-3 border-t border-slate-800 space-y-1.5 text-xs text-slate-300">
+          <div class="flex justify-between">
+            <span>Subtotal</span>
+            <span id="cartSubtotal">₹0.00</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>GST (5% Pure Veg Dining)</span>
+            <span id="cartGst">₹0.00</span>
+          </div>
+          <div class="flex justify-between text-base font-extrabold text-amber-400 pt-1 border-t border-slate-800/60">
+            <span>Payable Amount</span>
+            <span id="cartFinalTotal">₹0.00</span>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <button onclick="requestDineInOrder()" class="py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-paper-plane"></i> Send to Kitchen
+          </button>
+          <button onclick="requestFinalBill()" class="py-2.5 px-3 rounded-xl gold-gradient-bg text-black font-extrabold text-xs shadow-md shadow-amber-500/20 transition active:scale-95 flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-qrcode"></i> Ask for Bill / Pay
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: DUAL OPTION BILL PAYMENT -->
+    <div id="customerPayModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center px-4">
+      <div class="w-full max-w-sm bg-[#161B22] border border-amber-500/40 rounded-3xl p-5 shadow-2xl text-center relative animate-in fade-in zoom-in duration-200">
+        <button onclick="closeCustomerPayModal()" class="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold uppercase tracking-widest mb-1.5">
+          Pure Veg Smart Dine-In
+        </div>
+
+        <h3 class="text-base font-bold text-white">Hotel Triveni Bill Payment</h3>
+        <p class="text-[11px] text-slate-400 mb-3">Tap to launch your UPI app or scan the QR code</p>
+
+        <!-- PRIMARY DIRECT UPI ACTION BUTTON -->
+        <a id="directUpiDeepLinkBtn" href="#" class="mb-3 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/25 active:scale-95 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-mobile-screen-button text-sm"></i>
+          <span>Open GPay / PhonePe / Paytm</span>
+        </a>
+
+        <!-- QUICK LAUNCH APP PILLS -->
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <button onclick="launchUpiIntent('gpay')" class="py-2 px-1 rounded-lg bg-slate-800/90 border border-slate-700 hover:border-amber-400 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 transition">
+            <i class="fa-brands fa-google-pay text-base text-amber-400"></i> GPay
+          </button>
+          <button onclick="launchUpiIntent('phonepe')" class="py-2 px-1 rounded-lg bg-slate-800/90 border border-slate-700 hover:border-amber-400 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 transition">
+            <i class="fa-solid fa-bolt text-purple-400"></i> PhonePe
+          </button>
+          <button onclick="launchUpiIntent('paytm')" class="py-2 px-1 rounded-lg bg-slate-800/90 border border-slate-700 hover:border-amber-400 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 transition">
+            <i class="fa-solid fa-wallet text-sky-400"></i> Paytm
+          </button>
+        </div>
+
+        <!-- QR Code Container -->
+        <div class="bg-white p-2 rounded-2xl inline-block shadow-lg border-2 border-amber-500/50 mb-2">
+          <img id="customerUpiQrImage" src="" alt="Scan UPI QR" class="w-36 h-36 block mx-auto" />
+        </div>
+
+        <div class="text-2xl font-extrabold text-amber-400 leading-tight" id="customerPayAmount">₹0.00</div>
+        <div class="text-[10px] text-slate-400 mb-2.5">(Includes 5% Pure Veg Dining GST)</div>
+
+        <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 text-left text-xs space-y-1 mb-3">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Paying To:</span>
+            <span class="font-bold text-white">Hotel Triveni</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">UPI ID:</span>
+            <span class="font-mono font-bold text-amber-400">hotel.triveni@upi</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Table Station:</span>
+            <span class="font-bold text-emerald-400" id="customerPayTableStation">Table #01</span>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <button onclick="confirmCustomerPaid('UPI')" class="w-full py-2.5 rounded-xl gold-gradient-bg text-black font-extrabold text-xs shadow-md shadow-amber-500/25 active:scale-95 transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-circle-check"></i> I Completed Payment in App
+          </button>
+
+          <button onclick="requestCashPayment()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs border border-amber-500/30 active:scale-95 transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-money-bill-wave text-emerald-400"></i> Pay with Cash (Call Floor Staff)
+          </button>
+        </div>
+
+        <p class="text-[10px] text-slate-500 mt-2">Floor captain will verify and hand over the printed receipt.</p>
+      </div>
+    </div>
+
+    <!-- MODAL: FREE WI-FI CREDENTIALS -->
+    <div id="wifiModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center px-4">
+      <div class="w-full max-w-sm bg-[#161B22] border border-emerald-500/30 rounded-2xl p-5 shadow-2xl text-center">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto text-xl mb-3">
+          <i class="fa-solid fa-wifi"></i>
+        </div>
+        <h3 class="text-base font-bold text-white">Guest Wi-Fi Connection</h3>
+        <p class="text-xs text-slate-400 mt-1 mb-4">Enjoy high-speed internet while dining at Hotel Triveni.</p>
+
+        <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 text-left space-y-2 mb-4">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Network Name:</span>
+            <span class="font-bold text-white">Hotel_Triveni_Guest</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Password:</span>
+            <span class="font-bold text-amber-400 font-mono">Triveni@PureVeg</span>
+          </div>
+        </div>
+
+        <button onclick="copyWifiPassword()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition active:scale-95">
+          <i class="fa-regular fa-copy mr-1"></i> Copy Wi-Fi Password
+        </button>
+        <button onclick="closeWifiModal()" class="w-full mt-2 py-2 text-xs text-slate-400 hover:text-white">Close</button>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastNotification" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none translate-y-[-20px]">
+      <div class="bg-slate-900 border border-amber-500/40 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">Action completed</span>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const parsedTableParam = urlParams.get('table');
+    const CURRENT_TABLE_ID = parsedTableParam ? parseInt(parsedTableParam.replace(/\D/g, '')) || 1 : 1;
+    const CURRENT_TABLE_NAME = `Table #${CURRENT_TABLE_ID < 10 ? '0' + CURRENT_TABLE_ID : CURRENT_TABLE_ID}`;
+
+    const STORAGE_KEY = `triveni_table_${CURRENT_TABLE_ID}_orders`;
+
+    let socket;
+    try {
+      socket = io();
+      socket.on('connect', () => {
+        console.log(`Connected for ${CURRENT_TABLE_NAME}. Socket ID:`, socket.id);
+      });
+    } catch(e) {
+      console.warn('Socket server not detected. Running standalone mode.');
+    }
+
+    const MENU_ITEMS = [
+      // BREAKFAST
+      { id: 'b1', name: 'Plain Dose', category: 'breakfast', price: 50, desc: 'Crispy classic plain golden crepe served with chutney and sambar.', badge: 'Classic', rating: '4.6', image: 'All Dieshes/BreakFast/Plain Dose.jpg', icon: '🥞' },
+      { id: 'b2', name: 'Masala Dose', category: 'breakfast', price: 65, desc: 'Signature crispy crepe folded over seasoned potato palya with red chutney.', badge: 'Popular', rating: '4.8', image: 'All Dieshes/BreakFast/Masala Dose.jpg', icon: '🥞' },
+      { id: 'b3', name: 'Onion Dose', category: 'breakfast', price: 65, desc: 'Golden crepe generously topped with sautéed crunchy onions.', badge: 'Tasty', rating: '4.6', image: 'All Dieshes/BreakFast/Onion Dose.jpg', icon: '🥞' },
+      { id: 'b4', name: 'Set Dose', category: 'breakfast', price: 65, desc: 'Set of spongy, tender dosas served with mixed vegetable sagu and chutneys.', badge: 'Soft', rating: '4.7', image: 'All Dieshes/BreakFast/Set Dose.jpg', icon: '🥞' },
+      { id: 'b5', name: 'Rava Dose', category: 'breakfast', price: 60, desc: 'Crispy semolina crepe tempered with black peppercorns, cumin, and green chillies.', badge: 'Crispy', rating: '4.7', image: 'All Dieshes/BreakFast/Rava Dose.jpg', icon: '🥞' },
+      { id: 'b6', name: 'Pudi Dose', category: 'breakfast', price: 60, desc: 'Crisp dosa smeared with spicy roasted spiced lentil chutney powder (chutney pudi).', badge: 'Spicy', rating: '4.7', image: 'All Dieshes/BreakFast/Pudi Dose.jpg', icon: '🥞' },
+      { id: 'b7', name: 'Gee Pudi Dose', category: 'breakfast', price: 70, desc: 'Aromatic pure desi ghee dosa sprinkled with rich chutney pudi.', badge: 'Desi Ghee', rating: '4.9', image: 'All Dieshes/BreakFast/Gee Pudi Dose.jpg', icon: '🧈' },
+      { id: 'b8', name: 'Gee Pudi Masala Dose', category: 'breakfast', price: 70, desc: 'Crisp ghee roast with spicy chutney pudi and stuffed potato masala.', badge: 'Best Seller', rating: '4.9', image: 'All Dieshes/BreakFast/Gee Pudi Masala Dose.jpg', icon: '🥞' },
+      { id: 'b9', name: 'Gee Dose', category: 'breakfast', price: 70, desc: 'Golden roast prepared using pure fragrant desi ghee.', badge: 'Rich', rating: '4.8', image: 'All Dieshes/BreakFast/Gee Dose.jpg', icon: '🧈' },
+      { id: 'b10', name: 'Raagi Dose', category: 'breakfast', price: 55, desc: 'Nutritious finger millet dosa cooked golden brown.', badge: 'Healthy', rating: '4.6', image: 'All Dieshes/BreakFast/Raagi Dose.jpg', icon: '🥞' },
+      { id: 'b11', name: 'Karam Dose', category: 'breakfast', price: 55, desc: 'Spicy Andhra-style red chilli garlic spread on a crispy crepe.', badge: 'Hot', rating: '4.7', image: 'All Dieshes/BreakFast/Karam Dose.jpg', icon: '🌶️' },
+      { id: 'b12', name: 'Gee Karam Dose', category: 'breakfast', price: 70, desc: 'Spiced karam chutney dosa roasted in rich ghee.', badge: 'Chef Choice', rating: '4.8', image: 'All Dieshes/BreakFast/Gee Karam Dose.jpg', icon: '🧈' },
+      { id: 'b13', name: 'Karam Masala Dose', category: 'breakfast', price: 75, desc: 'Spiced red karam coating loaded with mashed potato bhaji.', badge: 'Flavorsome', rating: '4.8', image: 'All Dieshes/BreakFast/Karam Masala Dose.jpg', icon: '🥞' },
+      { id: 'b14', name: 'Pesarattu', category: 'breakfast', price: 70, desc: 'Traditional Andhra green gram (moong dal) crepe garnished with onions.', badge: 'Traditional', rating: '4.7', image: 'All Dieshes/BreakFast/Pesarattu.jpg', icon: '🥞' },
+      { id: 'b15', name: 'Button Idli', category: 'breakfast', price: 50, desc: 'Mini bite-sized steamed rice idlis dipped in piping hot sambar.', badge: 'Kids Fav', rating: '4.8', image: 'All Dieshes/BreakFast/Button Idli.jpg', icon: '🍲' },
+      { id: 'b16', name: 'Thatte Idli', category: 'breakfast', price: 45, desc: 'Large, flat, soft steamed plate idli served with coconut chutney.', badge: 'Authentic', rating: '4.8', image: 'All Dieshes/BreakFast/Thatte Idli.jpg', icon: '⚪' },
+      { id: 'b17', name: 'Normal Idli', category: 'breakfast', price: 40, desc: 'Two steamed fluffy rice cakes served with sambar and chutneys.', badge: 'Standard', rating: '4.6', image: 'All Dieshes/BreakFast/Normal Idli.jpg', icon: '⚪' },
+      { id: 'b18', name: 'Rava Idli', category: 'breakfast', price: 60, desc: 'Steamed roasted semolina cakes garnished with cashews, mustard seeds, and coriander.', badge: 'Special', rating: '4.7', image: 'All Dieshes/BreakFast/Rava Idli.jpg', icon: '⚪' },
+      { id: 'b19', name: 'Idli Vada Sambar', category: 'breakfast', price: 60, desc: 'One soft steamed idli and one crisp medu vada immersed in hot sambar.', badge: 'Top Combo', rating: '4.9', image: 'All Dieshes/BreakFast/Idli Vada Sambar.jpg', icon: '🍲' },
+      { id: 'b20', name: 'Vada Sambar', category: 'breakfast', price: 30, desc: 'Crispy fried medu vada soaked in aromatic lentil sambar.', badge: 'Crispy', rating: '4.7', image: 'All Dieshes/BreakFast/Vada Sambar..jpg', icon: '🍩' },
+      { id: 'b21', name: 'Uddina Vada', category: 'breakfast', price: 20, desc: 'Single traditional black gram crisp savory doughnut.', badge: 'Snack', rating: '4.5', image: 'All Dieshes/BreakFast/Uddina Vada.jpg', icon: '🍩' },
+      { id: 'b22', name: 'Uppittu', category: 'breakfast', price: 40, desc: 'Savory roasted semolina tempered with mustard seeds, curry leaves, and vegetables.', badge: 'Classic', rating: '4.5', image: 'All Dieshes/BreakFast/Uppittu.jpg', icon: '🥣' },
+      { id: 'b23', name: 'Kesari Bath', category: 'breakfast', price: 50, desc: 'Sweet semolina pudding enriched with pure ghee, saffron, and roasted cashews.', badge: 'Sweet', rating: '4.8', image: 'All Dieshes/BreakFast/Kesari Bath.jpg', icon: '🍯' },
+      { id: 'b24', name: 'Chow Chow Bath', category: 'breakfast', price: 60, desc: 'Traditional combination plate of spicy uppittu alongside sweet kesari bath.', badge: 'Popular Pair', rating: '4.8', image: 'All Dieshes/BreakFast/Chow Chow Bath.jpg', icon: '🍱' },
+      { id: 'b25', name: 'Pongal', category: 'breakfast', price: 50, desc: 'Warm rice and yellow moong dal cooked with crushed peppercorns, cumin, and ghee.', badge: 'Comfort', rating: '4.7', image: 'All Dieshes/BreakFast/Pongal.jpg', icon: '🍚' },
+      { id: 'b26', name: 'Bisibele Bath', category: 'breakfast', price: 60, desc: 'Spiced hot lentil-rice dish slow cooked with garden vegetables and ghee.', badge: 'Signature', rating: '4.8', image: 'All Dieshes/BreakFast/Bisibele Bath.jpg', icon: '🍲' },
+      { id: 'b27', name: 'Lemon Rice', category: 'breakfast', price: 50, desc: 'Zesty lemon tempered rice with crunchy peanuts and curry leaves.', badge: 'Tangy', rating: '4.6', image: 'All Dieshes/BreakFast/Lemon Rice.jpg', icon: '🍋' },
+      { id: 'b28', name: 'Shavige Bath', category: 'breakfast', price: 50, desc: 'Light vermicelli spiced with vegetables and mustard tempering.', badge: 'Light', rating: '4.5', image: 'All Dieshes/BreakFast/Shavige Bath.jpg', icon: '🍜' },
+      { id: 'b29', name: 'Paddu', category: 'breakfast', price: 60, desc: 'Crisp on the outside, fluffy inside steamed-and-fried batter dumplings.', badge: 'Evening Snack', rating: '4.7', image: 'All Dieshes/BreakFast/Paddu.jpg', icon: '🥟' },
+      { id: 'b30', name: 'Mangalore Bonda', category: 'breakfast', price: 30, desc: 'Fluffy golden fried maida dumplings flavored with cumin, ginger, and green chillies.', badge: 'Crispy', rating: '4.6', image: 'All Dieshes/BreakFast/Mangalore Bonda.jpg', icon: '🧆' },
+      { id: 'b31', name: 'Tea / Coffee', category: 'breakfast', price: 25, desc: 'Freshly brewed aromatic South Indian filter coffee or hot tea.', badge: 'Beverage', rating: '4.9', image: 'All Dieshes/BreakFast/Tea Coffee.jpg', icon: '☕' },
+
+      // MAIN COURSE (GRAVIES)
+      { id: 'm1', name: 'Dal Fry', category: 'main', price: 135, desc: 'Yellow lentils tempered with ghee, cumin seeds, garlic, and green chillies.', badge: 'Homestyle', rating: '4.6', image: 'All Dieshes/Main Course/Dal Fry.jpg', icon: '🍲' },
+      { id: 'm2', name: 'Dal Kolhapuri', category: 'main', price: 155, desc: 'Yellow lentils cooked with spicy Kolhapuri ground spice paste.', badge: 'Spicy', rating: '4.7', image: 'All Dieshes/Main Course/Dal Kolhapuri.jpg', icon: '🍲' },
+      { id: 'm3', name: 'Dal Thadka', category: 'main', price: 160, desc: 'Yellow lentils finished with a double tempering of garlic and dry red chillies.', badge: 'Popular', rating: '4.8', image: 'All Dieshes/Main Course/Dal Thadka.jpg', icon: '🍲' },
+      { id: 'm4', name: 'Dal Makhani', category: 'main', price: 170, desc: 'Slow-cooked whole black lentils prepared with butter and cream.', badge: 'Rich', rating: '4.9', image: 'All Dieshes/Main Course/Dal Makhani.jpg', icon: '🥣' },
+      { id: 'm5', name: 'Dal Palak', category: 'main', price: 160, desc: 'Wholesome yellow lentils cooked with fresh garden spinach.', badge: 'Healthy', rating: '4.6', image: 'All Dieshes/Main Course/Dal Palak.jpg', icon: '🥬' },
+      { id: 'm6', name: 'Veg Curry', category: 'main', price: 160, desc: 'Assorted seasonal vegetables simmered in mild onion-tomato curry.', badge: 'Standard', rating: '4.5', image: 'All Dieshes/Main Course/Veg Curry.jpg', icon: '🥘' },
+      { id: 'm7', name: 'Vegetable Kurma', category: 'main', price: 160, desc: 'Mixed garden vegetables cooked in coconut and cashew gravy.', badge: 'South Gravy', rating: '4.7', image: 'All Dieshes/Main Course/Vegetable Kurma.jpg', icon: '🥥' },
+      { id: 'm8', name: 'Sweet Corn Masala', category: 'main', price: 170, desc: 'Tender sweet corn kernels simmered in a spiced onion gravy.', badge: 'Mild', rating: '4.6', image: 'All Dieshes/Main Course/Sweet Corn Masala.jpg', icon: '🌽' },
+      { id: 'm9', name: 'Veg Kadai', category: 'main', price: 160, desc: 'Mixed vegetables and bell peppers cooked with freshly pounded kadai spices.', badge: 'Aromatic', rating: '4.7', image: 'All Dieshes/Main Course/Veg Kadai.jpg', icon: '🥘' },
+      { id: 'm10', name: 'Veg Kolhapuri', category: 'main', price: 160, desc: 'Mixed vegetables simmered in hot and spicy Kolhapuri red gravy.', badge: 'Spicy', rating: '4.7', image: 'All Dieshes/Main Course/Veg Kolhapuri.jpg', icon: '🌶️' },
+      { id: 'm11', name: 'Veg Hyderabadi', category: 'main', price: 160, desc: 'Garden vegetables simmered in spinach, mint, and yoghurt gravy.', badge: 'Herb Gravy', rating: '4.7', image: 'All Dieshes/Main Course/Veg Hyderabadi.jpg', icon: '🥘' },
+      { id: 'm12', name: 'Mix Veg Curry', category: 'main', price: 160, desc: 'Fresh vegetables cooked in homestyle North Indian masala.', badge: 'Wholesome', rating: '4.6', image: 'All Dieshes/Main Course/Mix Veg Curry.jpg', icon: '🥘' },
+      { id: 'm13', name: 'Paneer Butter Masala', category: 'main', price: 195, desc: 'Fresh paneer cubes in velvety butter-laden tomato and cashew gravy.', badge: 'Top Seller', rating: '4.9', image: 'All Dieshes/Main Course/Paneer Butter Masala.jpg', icon: '🧀' },
+      { id: 'm14', name: 'Paneer Hyderabadi', category: 'main', price: 195, desc: 'Paneer cubes simmered in spiced spinach-mint green gravy.', badge: 'Aromatic', rating: '4.8', image: 'All Dieshes/Main Course/Paneer Hyderabadi.jpg', icon: '🧀' },
+      { id: 'm15', name: 'Paneer Tawa', category: 'main', price: 195, desc: 'Paneer cubes stir-fried on an iron griddle with roasted tomatoes and onions.', badge: 'Semi-Dry', rating: '4.8', image: 'All Dieshes/Main Course/Paneer Tawa.jpg', icon: '🥘' },
+      { id: 'm16', name: 'Paneer Tikka Masala', category: 'main', price: 160, desc: 'Tandoor-grilled paneer pieces simmered in spiced tomato gravy.', badge: 'Tandoori', rating: '4.8', image: 'All Dieshes/Main Course/Paneer Tikka Masala.jpg', icon: '🧀' },
+      { id: 'm17', name: 'Paneer Kadai', category: 'main', price: 160, desc: 'Paneer and bell peppers cooked in coriander-seed kadai masala.', badge: 'Flavorsome', rating: '4.8', image: 'All Dieshes/Main Course/Paneer Kadai.jpg', icon: '🧀' },
+      { id: 'm18', name: 'Palak Paneer', category: 'main', price: 160, desc: 'Cottage cheese cubes simmered in mild spiced spinach puree.', badge: 'Classic', rating: '4.8', image: 'All Dieshes/Main Course/Palak Paneer.jpg', icon: '🥬' },
+      { id: 'm19', name: 'Paneer Lawabar', category: 'main', price: 160, desc: 'Grated and cubed paneer cooked in a rich, buttery tomato gravy.', badge: 'Royal', rating: '4.7', image: 'All Dieshes/Main Course/Paneer Lawabar.jpg', icon: '🧀' },
+      { id: 'm20', name: 'Paneer Chatpata', category: 'main', price: 160, desc: 'Paneer cooked in a tangy, spicy pickle-tempered masala.', badge: 'Tangy', rating: '4.7', image: 'All Dieshes/Main Course/Paneer Chatpata.jpg', icon: '🧀' },
+      { id: 'm21', name: 'Paneer (Triveni Special)', category: 'main', price: 160, desc: 'House special cottage cheese curry cooked with chef secret spices.', badge: 'House Special', rating: '4.9', image: 'All Dieshes/Main Course/Paneer Triveni Special.jpg', icon: '👑' },
+      { id: 'm22', name: 'Paneer Bhuji', category: 'main', price: 150, desc: 'Scrambled paneer sautéed with onions, green chillies, and tomatoes.', badge: 'Homestyle', rating: '4.7', image: 'All Dieshes/Main Course/Paneer Bhurji.jpg', icon: '🧀' },
+      { id: 'm23', name: 'Matar Paneer', category: 'main', price: 160, desc: 'Green peas and cottage cheese cubes simmered in spiced onion gravy.', badge: 'Standard', rating: '4.7', image: 'All Dieshes/Main Course/Matar Paneer.jpg', icon: '🧀' },
+      { id: 'm24', name: 'Palak Curry', category: 'main', price: 120, desc: 'Fresh spinach leaves cooked with garlic and tempered spices.', badge: 'Greens', rating: '4.6', image: 'All Dieshes/Main Course/Palak Curry.jpg', icon: '🥬' },
+      { id: 'm25', name: 'Mushroom Masala', category: 'main', price: 140, desc: 'Button mushrooms simmered in an aromatic onion-tomato semi-gravy.', badge: 'Juicy', rating: '4.7', image: 'All Dieshes/Main Course/Mushroom Masala.jpg', icon: '🍄' },
+      { id: 'm26', name: 'Mushroom Kolhapuri', category: 'main', price: 140, desc: 'Button mushrooms prepared in fiery red Kolhapuri masala.', badge: 'Spicy', rating: '4.7', image: 'All Dieshes/Main Course/Mushroom Kolhapuri.jpg', icon: '🍄' },
+      { id: 'm27', name: 'Mushroom Hyderabadi', category: 'main', price: 140, desc: 'Fresh mushrooms cooked in mint and coriander herbal gravy.', badge: 'Herb Gravy', rating: '4.7', image: 'All Dieshes/Main Course/Mushroom Hyderabadi.jpg', icon: '🍄' },
+      { id: 'm28', name: 'Navratan Kurma', category: 'main', price: 150, desc: 'Nine seasonal vegetables, nuts, and paneer cooked in a sweet creamy gravy.', badge: 'Sweet & Savory', rating: '4.7', image: 'All Dieshes/Main Course/Navratan Kurma.jpg', icon: '🍲' },
+      { id: 'm29', name: 'Malai Kofta', category: 'main', price: 190, desc: 'Crisp potato-paneer dumplings served in rich cashew-cream white gravy.', badge: 'Rich', rating: '4.9', image: 'All Dieshes/Main Course/Malai Kofta.jpg', icon: '🧆' },
+      { id: 'm30', name: 'Kaju Masala', category: 'main', price: 180, desc: 'Roasted cashew nuts simmered in royal onion-tomato gravy.', badge: 'Royal', rating: '4.9', image: 'All Dieshes/Main Course/Kaju Masala.jpg', icon: '🥜' },
+      { id: 'm31', name: 'Aloo Jeera', category: 'main', price: 150, desc: 'Boiled potatoes sautéed with cumin seeds, turmeric, and fresh coriander.', badge: 'Dry', rating: '4.6', image: 'All Dieshes/Main Course/Aloo Jeera.jpg', icon: '🥔' },
+      { id: 'm32', name: 'Aloo Gobi', category: 'main', price: 160, desc: 'Potatoes and cauliflower florets cooked with roasted spices.', badge: 'Classic', rating: '4.6', image: 'All Dieshes/Main Course/Aloo Gobi.jpg', icon: '🥔' },
+      { id: 'm33', name: 'Nizami Haandi', category: 'main', price: 160, desc: 'Mixed vegetables and spinach cooked in an earthen clay pot style.', badge: 'Traditional', rating: '4.8', image: 'All Dieshes/Main Course/Nizami Haandi.jpg', icon: '🍲' },
+      { id: 'm34', name: 'Channa Masala', category: 'main', price: 180, desc: 'White chickpeas simmered in a spiced Punjabi tea-infused gravy.', badge: 'Tangy', rating: '4.7', image: 'All Dieshes/Main Course/Channa Masala.jpg', icon: '🫘' },
+
+      // RICE ITEMS
+      { id: 'r1', name: 'Curd Rice', category: 'rice', price: 70, desc: 'Tempered curd rice with mustard seeds, curry leaves, and pomegranate.', badge: 'Cooling', rating: '4.8', image: 'All Dieshes/Rice Items/Curd Rice.jpg', icon: '🍚' },
+      { id: 'r2', name: 'Lemon Rice', category: 'rice', price: 80, desc: 'Steamed rice tossed with fresh lemon juice, roasted peanuts, and spices.', badge: 'Tangy', rating: '4.6', image: 'All Dieshes/Rice Items/Lemon Rice.jpg', icon: '🍋' },
+      { id: 'r3', name: 'Jeera Rice', category: 'rice', price: 110, desc: 'Aromatic basmati rice tempered with roasted cumin seeds and desi ghee.', badge: 'Aromatic', rating: '4.8', image: 'All Dieshes/Rice Items/Jeera Rice.jpg', icon: '🍚' },
+      { id: 'r4', name: 'Ghee Rice', category: 'rice', price: 130, desc: 'Fragrant basmati rice gently cooked with clarified desi ghee and whole spices.', badge: 'Desi Ghee', rating: '4.9', image: 'All Dieshes/Rice Items/Ghee Rice.jpg', icon: '🧈' },
+      { id: 'r5', name: 'Dal Kichdi', category: 'rice', price: 140, desc: 'Comforting preparation of rice and yellow lentils tempered with garlic and ghee.', badge: 'Comfort Food', rating: '4.8', image: 'All Dieshes/Rice Items/Dal Kichdi.jpg', icon: '🥣' },
+      { id: 'r6', name: 'Palak Kichdi', category: 'rice', price: 130, desc: 'Nutritious lentil and rice khichdi enriched with blended spinach puree.', badge: 'Healthy', rating: '4.7', image: 'All Dieshes/Rice Items/Palak Kichdi.jpg', icon: '🥬' },
+      { id: 'r7', name: 'Palak Rice', category: 'rice', price: 130, desc: 'Basmati rice cooked with fresh spinach puree and spices.', badge: 'Healthy', rating: '4.6', image: 'All Dieshes/Rice Items/Palak Rice.jpg', icon: '🥬' },
+      { id: 'r8', name: 'Veg Palav', category: 'rice', price: 120, desc: 'Homestyle mild spiced rice cooked with seasonal mixed vegetables.', badge: 'Standard', rating: '4.7', image: 'All Dieshes/Rice Items/Veg Palav.jpg', icon: '🍚' },
+      { id: 'r9', name: 'Veg Biriyani', category: 'rice', price: 130, desc: 'Layered spiced basmati rice cooked with garden vegetables and saffron.', badge: 'Popular', rating: '4.8', image: 'All Dieshes/Rice Items/Veg Biriyani.jpg', icon: '🍛' },
+      { id: 'r10', name: 'Veg Hyderabadi Biriyani', category: 'rice', price: 160, desc: 'Dum-cooked spicy basmati rice layered with vegetables, served with salan and raita.', badge: 'Dum Special', rating: '4.9', image: 'All Dieshes/Rice Items/Veg Hyderabadi Biriyani.jpg', icon: '🍛' },
+      { id: 'r11', name: 'Paneer Biriyani', category: 'rice', price: 180, desc: 'Aromatic long-grain basmati rice layered with spiced cottage cheese cubes.', badge: 'Rich', rating: '4.8', image: 'All Dieshes/Rice Items/Paneer Biriyani.jpg', icon: '🍛' },
+      { id: 'r12', name: 'Mushroom Biriyani', category: 'rice', price: 180, desc: 'Fragrant basmati rice cooked with tender spiced button mushrooms.', badge: 'Flavorful', rating: '4.8', image: 'All Dieshes/Rice Items/mushroom biryani.jpg', icon: '🍛' },
+      { id: 'r13', name: 'Green Peas Biriyani', category: 'rice', price: 180, desc: 'Mild basmati rice cooked with sweet green peas and whole spices.', badge: 'Mild', rating: '4.7', image: 'All Dieshes/Rice Items/Green Peas biryani.jpg', icon: '🍛' },
+
+      // CHINESE (FRIED RICE & NOODLES)
+      { id: 'c1', name: 'Veg Fried Rice', category: 'chinese', price: 135, desc: 'Wok-tossed basmati rice with finely diced carrots, beans, and spring onions.', badge: 'Classic', rating: '4.7', image: 'All Dieshes/Chinese & Fast/Veg Fried Rice.jpg', icon: '🍚' },
+      { id: 'c2', name: 'Paneer Fried Rice', category: 'chinese', price: 150, desc: 'Wok-tossed rice tossed with crisp golden fried paneer cubes.', badge: 'Popular', rating: '4.8', image: 'All Dieshes/Chinese & Fast/Paneer Fried Rice.jpg', icon: '🍚' },
+      { id: 'c3', name: 'Mushroom Fried Rice', category: 'chinese', price: 150, desc: 'Wok-tossed rice flavored with button mushrooms and soya sauce.', badge: 'Tasty', rating: '4.7', image: 'All Dieshes/Chinese & Fast/Mushroom Fried Rice.jpg', icon: '🍚' },
+      { id: 'c4', name: 'Schezwan Fried Rice', category: 'chinese', price: 140, desc: 'Spicy wok-tossed rice flavored with fiery schezwan pepper sauce.', badge: 'Spicy', rating: '4.8', image: 'All Dieshes/Chinese & Fast/Schezwan Fried Rice..jpg', icon: '🍚' },
+      { id: 'c5', name: 'Triple Fried Rice', category: 'chinese', price: 200, desc: 'Combination of fried rice, crispy fried noodles, and hot manchurian gravy.', badge: 'Chef Special', rating: '4.9', image: 'All Dieshes/Chinese & Fast/Triple Fried Rice.jpg', icon: '🍱' },
+      { id: 'c6', name: 'Veg Noodles', category: 'chinese', price: 100, desc: 'Soft hakka noodles stir-fried with julienned vegetables and light soy.', badge: 'Favorite', rating: '4.7', image: 'All Dieshes/Chinese & Fast/Veg Noodles.jpg', icon: '🍜' },
+      { id: 'c7', name: 'Mushroom Noodles', category: 'chinese', price: 110, desc: 'Stir-fried noodles loaded with sliced mushrooms and scallions.', badge: 'Savory', rating: '4.7', image: 'All Dieshes/Chinese & Fast/Mushroom Noodles.jpg', icon: '🍜' },
+      { id: 'c8', name: 'Hakka Noodles', category: 'chinese', price: 135, desc: 'Classic Calcutta-style wok-tossed noodles with white pepper and celery.', badge: 'Authentic', rating: '4.8', image: 'All Dieshes/Chinese & Fast/Hakka Noodles.jpg', icon: '🍜' },
+      { id: 'c9', name: 'Schezwan Noodles', category: 'chinese', price: 140, desc: 'Noodles stir-fried in hot and garlicky schezwan sauce.', badge: 'Fiery', rating: '4.8', image: 'All Dieshes/Chinese & Fast/Schezwan Noodles.jpg', icon: '🍜' },
+      { id: 'c10', name: 'Paneer Noodles', category: 'chinese', price: 140, desc: 'Stir-fried noodles combined with spiced paneer cubes.', badge: 'Rich', rating: '4.8', image: 'All Dieshes/Chinese & Fast/Paneer Noodles.jpg', icon: '🍜' },
+      { id: 'c11', name: 'Triple Noodles', category: 'chinese', price: 200, desc: 'Loaded noodle dish served with crisp fried noodles and vegetable gravy.', badge: 'Heavy Meal', rating: '4.9', image: 'All Dieshes/Chinese & Fast/Triple Noodles.jpg', icon: '🍜' },
+
+      // CONTINENTAL (PIZZA, PASTA, SANDWICHES & CUTLETS)
+      { id: 'cnt1', name: 'Veg Cheese Grilled Sandwich', category: 'continental', price: 100, desc: 'Triple layer sandwich packed with vegetables, cheese, and grilled golden.', badge: 'Crispy', rating: '4.8', image: 'All Dieshes/Continental/Veg Cheese Grilled Sandwich.jpg', icon: '🥪' },
+      { id: 'cnt2', name: 'Pahadi Cheese Grilled Sandwich', category: 'continental', price: 110, desc: 'Grilled sandwich stuffed with spicy pahadi green chutney and cheese.', badge: 'Spicy', rating: '4.7', image: 'All Dieshes/Continental/Pahadi Cheese Grilled Sandwich.jpg', icon: '🥪' },
+      { id: 'cnt3', name: 'Veg Grilled Sandwich', category: 'continental', price: 110, desc: 'Classic toasted sandwich with cucumbers, tomatoes, and potatoes.', badge: 'Toasted', rating: '4.6', image: 'All Dieshes/Continental/Veg Grilled Sandwich.jpg', icon: '🥪' },
+      { id: 'cnt4', name: 'Veg Cheese Sandwich', category: 'continental', price: 130, desc: 'Cold cut fresh bread sandwich with sliced cheese and veggies.', badge: 'Fresh', rating: '4.6', image: 'All Dieshes/Continental/Veg Cheese Sandwich.jpg', icon: '🥪' },
+      { id: 'cnt5', name: 'Corn Cheese Pizza', category: 'continental', price: 170, desc: 'Baked crust topped with sweet corn kernels and melted mozzarella.', badge: 'Cheesy', rating: '4.8', image: 'All Dieshes/Continental/Corn Cheese Pizza.jpg', icon: '🍕' },
+      { id: 'cnt6', name: 'Mushroom Pizza', category: 'continental', price: 180, desc: 'Pizza topped with sliced button mushrooms, herbs, and cheese.', badge: 'Savory', rating: '4.7', image: 'All Dieshes/Continental/Mushroom Pizza.jpg', icon: '🍕' },
+      { id: 'cnt7', name: 'Cheese Burst Pizza', category: 'continental', price: 180, desc: 'Loaded crust oozing with hot molten cheese blend.', badge: 'Cheese Burst', rating: '4.9', image: 'All Dieshes/Continental/Cheese Burst Pizza.jpg', icon: '🧀' },
+      { id: 'cnt8', name: 'All Veggies Pizza', category: 'continental', price: 150, desc: 'Capsicum, onions, tomatoes, and corn loaded over cheese.', badge: 'Veggie', rating: '4.7', image: 'All Dieshes/Continental/All Veggies Pizza.jpg', icon: '🍕' },
+      { id: 'cnt9', name: 'Pizza Margherita', category: 'continental', price: 140, desc: 'Classic Italian pizza with tomato basil sauce and mozzarella cheese.', badge: 'Classic', rating: '4.7', image: 'All Dieshes/Continental/Pizza Margherita.jpg', icon: '🍕' },
+      { id: 'cnt10', name: 'White Sauce Pasta', category: 'continental', price: 140, desc: 'Penne pasta tossed in rich, creamy Italian bechamel cheese sauce.', badge: 'Creamy', rating: '4.8', image: 'All Dieshes/Continental/White Sauce Pasta.jpg', icon: '🍝' },
+      { id: 'cnt11', name: 'Red Sauce Pasta', category: 'continental', price: 140, desc: 'Penne cooked in tangy, spiced arrabbiata tomato basil sauce.', badge: 'Tangy', rating: '4.7', image: 'All Dieshes/Continental/Red Sauce Pasta.jpg', icon: '🍝' },
+      { id: 'cnt12', name: 'Pink Sauce Pasta', category: 'continental', price: 140, desc: 'Penne prepared in a smooth fusion of red tomato and creamy white sauce.', badge: 'Favorite', rating: '4.8', image: 'All Dieshes/Continental/Pink Sauce Pasta.jpg', icon: '🍝' },
+      { id: 'cnt13', name: 'Pesto Pasta', category: 'continental', price: 160, desc: 'Penne pasta tossed in fresh green basil, olive oil, and parmesan sauce.', badge: 'Basil Pesto', rating: '4.7', image: 'All Dieshes/Continental/Pesto Pasta.jpg', icon: '🍝' },
+      { id: 'cnt14', name: 'Cheese Burst Garlic Bread', category: 'continental', price: 90, desc: 'Toasted baguette stuffed with garlic butter and melted cheese.', badge: 'Hot', rating: '4.8', image: 'All Dieshes/Continental/Cheese Burst Garlic Bread.jpg', icon: '🥖' },
+      { id: 'cnt15', name: 'Chilli Cheese Garlic Bread', category: 'continental', price: 119, desc: 'Garlic bread topped with melted cheese and chopped green chillies.', badge: 'Spicy', rating: '4.8', image: 'All Dieshes/Continental/Chilli Cheese Garlic Bread.jpg', icon: '🥖' },
+      { id: 'cnt16', name: 'Cheese Garlic Bread', category: 'continental', price: 119, desc: 'Oven-toasted crusty bread brushed with garlic butter and melted cheese.', badge: 'Cheesy', rating: '4.7', image: 'All Dieshes/Continental/Cheese Garlic Bread.jpg', icon: '🥖' },
+      { id: 'cnt17', name: 'Classic Garlic Bread', category: 'continental', price: 119, desc: 'Herb seasoned toasted bread flavored with roasted garlic butter.', badge: 'Crisp', rating: '4.6', image: 'All Dieshes/Continental/Classic Garlic Bread.jpg', icon: '🥖' },
+      { id: 'cnt18', name: 'Veg Cutlet', category: 'continental', price: 70, desc: 'Crisp golden patties made from minced vegetables and potatoes.', badge: 'Snack', rating: '4.6', image: 'All Dieshes/Continental/Veg Cutlet.jpg', icon: '🧆' },
+      { id: 'cnt19', name: 'Cheese Cutlet', category: 'continental', price: 99, desc: 'Crusty breaded vegetable cutlet filled with molten cheese.', badge: 'Cheesy', rating: '4.8', image: 'All Dieshes/Continental/Cheese Cutlet.jpg', icon: '🧆' },
+      { id: 'cnt20', name: 'Paneer Cutlet', category: 'continental', price: 119, desc: 'Spiced minced cottage cheese cutlets fried golden.', badge: 'Crisp', rating: '4.7', image: 'All Dieshes/Continental/Paneer Cutlet.jpg', icon: '🧆' },
+      { id: 'cnt21', name: 'Aloo Cutlet', category: 'continental', price: 119, desc: 'Spiced mashed potato cutlets served with mint chutney.', badge: 'Snack', rating: '4.6', image: 'All Dieshes/Continental/Aloo Cutlet.jpg', icon: '🧆' },
+      { id: 'cnt22', name: 'Hara Bara Cutlet', category: 'continental', price: 99, desc: 'Healthy pan-seared green pea and spinach patties.', badge: 'Healthy', rating: '4.7', image: 'All Dieshes/Continental/Hara Bara Cutlet.jpg', icon: '🧆' }
+    ];
+
+    let currentCategory = 'all';
+    let searchQuery = '';
+    let cart = {}; 
+    let confirmedOrders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); 
+    let activeUpiUrl = '';
+
+    window.onload = function () {
+      document.getElementById('currentTableDisplay').innerText = CURRENT_TABLE_NAME;
+      document.getElementById('tabModalTableLabel').innerText = `Table ${CURRENT_TABLE_ID}`;
+      document.getElementById('customerPayTableStation').innerText = CURRENT_TABLE_NAME;
+
+      renderMenuItems();
+      initMemoryGame();
+      drawWheel();
+      updateCartUI();
+    };
+
+    function renderMenuItems() {
+      const container = document.getElementById('itemsContainer');
+      container.innerHTML = '';
+
+      const filtered = MENU_ITEMS.filter(item => {
+        const matchesCategory = currentCategory === 'all' || item.category === currentCategory;
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              item.desc.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 px-4">
+            <div class="w-14 h-14 mx-auto rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-xl mb-3">
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <h4 class="text-sm font-bold text-white">No dishes found</h4>
+            <p class="text-xs text-slate-400 mt-1">Try another search term or browse other categories.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const qty = cart[item.id] || 0;
+        const card = document.createElement('div');
+        card.className = "glass-card rounded-2xl p-3.5 flex gap-3.5 transition-all relative overflow-hidden group";
+        
+        card.innerHTML = `
+          <div class="w-24 h-24 rounded-xl overflow-hidden bg-slate-900 border border-slate-700/60 flex-shrink-0 relative shadow-md">
+            <img src="${encodeURI(item.image)}" 
+                 alt="${item.name}" 
+                 class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            
+            <div class="hidden w-full h-full items-center justify-center text-3xl bg-slate-800">
+              ${item.icon || '🍲'}
+            </div>
+
+            <div class="absolute top-1.5 left-1.5 veg-dot-badge shadow-sm"></div>
+          </div>
+
+          <div class="flex-1 flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between gap-1">
+                <h3 class="text-sm font-bold text-white leading-snug group-hover:text-amber-400 transition">${item.name}</h3>
+                <span class="text-[10px] font-bold text-amber-400 flex items-center gap-0.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 whitespace-nowrap">
+                  <i class="fa-solid fa-star text-[9px]"></i> ${item.rating}
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">${item.desc}</p>
+            </div>
+
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/80">
+              <div class="text-sm font-extrabold text-amber-400">
+                ₹${item.price}
+                <span class="text-[9px] font-normal text-slate-400 block -mt-0.5">Triveni Pure Veg</span>
+              </div>
+
+              <div>
+                ${qty === 0 ? `
+                  <button onclick="addToCart('${item.id}')" class="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-black font-extrabold text-xs border border-amber-500/30 transition-all flex items-center gap-1 active:scale-90 shadow-sm">
+                    <i class="fa-solid fa-plus text-[10px]"></i> ADD
+                  </button>
+                ` : `
+                  <div class="flex items-center bg-slate-800 border border-amber-500/40 rounded-xl overflow-hidden shadow">
+                    <button onclick="changeQty('${item.id}', -1)" class="w-7 h-7 flex items-center justify-center text-amber-400 hover:bg-slate-700 active:bg-amber-500 active:text-black text-xs font-bold transition">
+                      <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <span class="w-7 text-center font-bold text-xs text-white">${qty}</span>
+                    <button onclick="changeQty('${item.id}', 1)" class="w-7 h-7 flex items-center justify-center text-amber-400 hover:bg-slate-700 active:bg-amber-500 active:text-black text-xs font-bold transition">
+                      <i class="fa-solid fa-plus"></i>
+                    </button>
+                  </div>
+                `}
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('bg-amber-500', 'text-black', 'shadow-md', 'shadow-amber-500/20');
+        btn.classList.add('bg-slate-800/80', 'text-slate-300');
+      });
+      const activeBtn = document.getElementById(`tab-${cat}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-slate-800/80', 'text-slate-300');
+        activeBtn.classList.add('bg-amber-500', 'text-black', 'shadow-md', 'shadow-amber-500/20');
+      }
+      renderMenuItems();
+    }
+
+    function handleMenuSearch() {
+      const input = document.getElementById('menuSearch');
+      searchQuery = input.value;
+      document.getElementById('clearSearchBtn').classList.toggle('hidden', searchQuery.length === 0);
+      renderMenuItems();
+    }
+
+    function clearSearch() {
+      document.getElementById('menuSearch').value = '';
+      searchQuery = '';
+      document.getElementById('clearSearchBtn').classList.add('hidden');
+      renderMenuItems();
+    }
+
+    function addToCart(itemId) {
+      cart[itemId] = 1;
+      showToast('Added to your order tab!', 'fa-solid fa-check');
+      updateCartUI();
+      renderMenuItems();
+    }
+
+    function changeQty(itemId, delta) {
+      if (!cart[itemId]) return;
+      cart[itemId] += delta;
+      if (cart[itemId] <= 0) {
+        delete cart[itemId];
+      }
+      updateCartUI();
+      renderMenuItems();
+      renderCartModalList();
+    }
+
+    function updateCartUI() {
+      let currentCartQty = 0;
+      let currentCartSubtotal = 0;
+
+      for (let id in cart) {
+        const item = MENU_ITEMS.find(m => m.id === id);
+        if (item) {
+          currentCartQty += cart[id];
+          currentCartSubtotal += item.price * cart[id];
+        }
+      }
+
+      const confirmedSubtotal = confirmedOrders.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      const totalSessionSubtotal = currentCartSubtotal + confirmedSubtotal;
+      const totalSessionGrand = totalSessionSubtotal + (totalSessionSubtotal * 0.05);
+
+      document.getElementById('headerTotalBadge').innerText = `₹${totalSessionGrand.toFixed(2)}`;
+
+      const floatingCart = document.getElementById('floatingCart');
+      const navCartDot = document.getElementById('navCartDot');
+
+      if (currentCartQty > 0) {
+        floatingCart.classList.remove('translate-y-32', 'opacity-0', 'pointer-events-none');
+        document.getElementById('floatingCartCount').innerText = currentCartQty;
+        document.getElementById('floatingCartSummary').innerText = `${currentCartQty} new item${currentCartQty > 1 ? 's' : ''} in cart`;
+        document.getElementById('floatingCartTotal').innerText = `₹${currentCartSubtotal}`;
+        navCartDot.classList.remove('hidden');
+      } else {
+        floatingCart.classList.add('translate-y-32', 'opacity-0', 'pointer-events-none');
+        navCartDot.classList.toggle('hidden', confirmedOrders.length === 0);
+      }
+    }
+
+    function switchView(viewName) {
+      const menuView = document.getElementById('menuView');
+      const gamesView = document.getElementById('gamesView');
+      const navMenuBtn = document.getElementById('navMenuBtn');
+      const navGamesBtn = document.getElementById('navGamesBtn');
+
+      if (viewName === 'games') {
+        menuView.classList.add('hidden');
+        gamesView.classList.remove('hidden');
+        navGamesBtn.classList.add('text-amber-400');
+        navGamesBtn.classList.remove('text-slate-400');
+        navMenuBtn.classList.remove('text-amber-400');
+        navMenuBtn.classList.add('text-slate-400');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        gamesView.classList.add('hidden');
+        menuView.classList.remove('hidden');
+        navMenuBtn.classList.add('text-amber-400');
+        navMenuBtn.classList.remove('text-slate-400');
+        navGamesBtn.classList.remove('text-amber-400');
+        navGamesBtn.classList.add('text-slate-400');
+      }
+    }
+
+    function openTabModal() {
+      renderCartModalList();
+      document.getElementById('tabModal').classList.remove('hidden');
+    }
+
+    function closeTabModal() {
+      document.getElementById('tabModal').classList.add('hidden');
+    }
+
+    function renderCartModalList() {
+      const list = document.getElementById('cartItemList');
+      list.innerHTML = '';
+
+      const pendingIds = Object.keys(cart);
+      const hasPending = pendingIds.length > 0;
+      const hasConfirmed = confirmedOrders.length > 0;
+
+      if (!hasPending && !hasConfirmed) {
+        list.innerHTML = `
+          <div class="text-center py-8">
+            <i class="fa-solid fa-basket-shopping text-3xl text-slate-600 mb-2"></i>
+            <p class="text-xs text-slate-400">Your table order is empty.</p>
+            <p class="text-[11px] text-amber-400 mt-1">Select your favorite South or North Indian dishes!</p>
+          </div>
+        `;
+        document.getElementById('cartSubtotal').innerText = '₹0.00';
+        document.getElementById('cartGst').innerText = '₹0.00';
+        document.getElementById('cartFinalTotal').innerText = '₹0.00';
+        return;
+      }
+
+      let subtotal = 0;
+
+      if (hasConfirmed) {
+        const confirmedHeader = document.createElement('div');
+        confirmedHeader.className = "flex items-center gap-1.5 text-xs font-bold text-emerald-400 pb-1 border-b border-emerald-500/20";
+        confirmedHeader.innerHTML = `<i class="fa-solid fa-fire-burner"></i> Already in Kitchen (Preparing)`;
+        list.appendChild(confirmedHeader);
+
+        confirmedOrders.forEach((item, index) => {
+          const itemTotal = item.price * item.qty;
+          subtotal += itemTotal;
+
+          const row = document.createElement('div');
+          row.className = "flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-xs";
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <img src="${encodeURI(item.image || '')}" class="w-8 h-8 rounded-lg object-cover" onerror="this.outerHTML='<span class=\\'text-base\\'>${item.icon || '🍲'}</span>'" />
+              <div>
+                <div class="font-bold text-slate-200">${item.qty}x ${item.name}</div>
+                <div class="text-[10px] text-emerald-400/80">Round ${item.round || 1} • In Kitchen</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <div class="font-extrabold text-emerald-300">₹${itemTotal.toFixed(2)}</div>
+              <button onclick="requestItemModification(${index})" class="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 text-[10px] font-bold transition active:scale-90">
+                Change / Cancel
+              </button>
+            </div>
+          `;
+          list.appendChild(row);
+        });
+      }
+
+      if (hasPending) {
+        const pendingHeader = document.createElement('div');
+        pendingHeader.className = "flex items-center gap-1.5 text-xs font-bold text-amber-400 pt-2 pb-1 border-b border-amber-500/20";
+        pendingHeader.innerHTML = `<i class="fa-solid fa-cart-plus"></i> New Items to Send`;
+        list.appendChild(pendingHeader);
+
+        pendingIds.forEach(id => {
+          const item = MENU_ITEMS.find(m => m.id === id);
+          const qty = cart[id];
+          const itemTotal = (item ? item.price : 0) * qty;
+          subtotal += itemTotal;
+
+          const row = document.createElement('div');
+          row.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs";
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <img src="${encodeURI(item ? item.image : '')}" class="w-8 h-8 rounded-lg object-cover" onerror="this.outerHTML='<span class=\\'text-lg\\'>${item ? item.icon : '🍲'}</span>'" />
+              <div>
+                <div class="font-bold text-white">${item ? item.name : id}</div>
+                <div class="text-[10px] text-slate-400">₹${item ? item.price : 0} each</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+                <button onclick="changeQty('${id}', -1)" class="w-6 h-6 text-amber-400 font-bold hover:bg-slate-700">-</button>
+                <span class="w-6 text-center text-white font-bold text-[11px]">${qty}</span>
+                <button onclick="changeQty('${id}', 1)" class="w-6 h-6 text-amber-400 font-bold hover:bg-slate-700">+</button>
+              </div>
+              <div class="font-extrabold text-amber-400 w-12 text-right">₹${itemTotal}</div>
+            </div>
+          `;
+          list.appendChild(row);
+        });
+      }
+
+      const gst = subtotal * 0.05;
+      const grandTotal = subtotal + gst;
+
+      document.getElementById('cartSubtotal').innerText = `₹${subtotal.toFixed(2)}`;
+      document.getElementById('cartGst').innerText = `₹${gst.toFixed(2)}`;
+      document.getElementById('cartFinalTotal').innerText = `₹${grandTotal.toFixed(2)}`;
+    }
+
+    function requestItemModification(itemIndex) {
+      const targetItem = confirmedOrders[itemIndex];
+      if (!targetItem) return;
+
+      const choice = prompt(
+        `Modify "${targetItem.name}" (Current Qty: ${targetItem.qty}):\n\nEnter new quantity (0 to cancel item completely):`,
+        targetItem.qty
+      );
+
+      if (choice === null) return;
+      const newQty = parseInt(choice);
+
+      if (isNaN(newQty) || newQty < 0) {
+        alert("Please enter a valid quantity (0 or higher).");
+        return;
+      }
+
+      const oldQty = targetItem.qty;
+      const oldName = targetItem.name;
+
+      if (newQty === 0) {
+        confirmedOrders.splice(itemIndex, 1);
+      } else {
+        targetItem.qty = newQty;
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedOrders));
+      updateCartUI();
+      renderCartModalList();
+
+      if (socket) {
+        socket.emit('order-modified', {
+          tableId: CURRENT_TABLE_ID,
+          table: `Table ${CURRENT_TABLE_ID}`,
+          action: newQty === 0 ? 'ITEM_CANCELED' : 'QTY_REDUCED',
+          itemName: oldName,
+          oldQty: oldQty,
+          newQty: newQty,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+      }
+
+      showToast(`Kitchen updated: ${oldName} (${oldQty} → ${newQty})`, 'fa-solid fa-triangle-exclamation');
+    }
+
+    function triggerCallWaiter() {
+      if (socket) {
+        socket.emit('call-waiter', { 
+          table: `Table ${CURRENT_TABLE_ID}`, 
+          tableId: CURRENT_TABLE_ID, 
+          time: new Date().toLocaleTimeString() 
+        });
+      }
+      showToast(`Captain notified! Waiter arriving at Table ${CURRENT_TABLE_ID} momentarily.`, 'fa-solid fa-bell-concierge');
+    }
+
+    // STRICT SINGLE-EMISSION ORDER LOGIC (PREVENTS KDS DUPLICATES)
+    function requestDineInOrder() {
+      const pendingIds = Object.keys(cart);
+      if (pendingIds.length === 0) {
+        showToast('No new items to send to kitchen!', 'fa-solid fa-circle-exclamation');
+        return;
+      }
+
+      const roundItems = pendingIds.map(id => {
+        const item = MENU_ITEMS.find(m => m.id === id);
+        return {
+          id: item ? item.id : id,
+          name: item ? item.name : 'Selected Item',
+          price: item ? item.price : 0,
+          qty: cart[id],
+          image: item ? item.image : '',
+          icon: item ? item.icon : '🍲',
+          round: (confirmedOrders.length > 0 ? (confirmedOrders[confirmedOrders.length - 1].round || 1) + 1 : 1)
+        };
+      });
+
+      const roundTotal = roundItems.reduce((acc, i) => acc + (i.price * i.qty), 0);
+      const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const orderPayload = {
+        table: `Table ${CURRENT_TABLE_ID}`,
+        tableId: CURRENT_TABLE_ID,
+        orderId: "#" + Math.floor(1000 + Math.random() * 9000),
+        items: roundItems,
+        total: roundTotal,
+        roundTotal: roundTotal,
+        round: roundItems[0].round,
+        time: currentTime,
+        timestamp: currentTime
+      };
+
+      // ONLY emit 'order-placed' to avoid duplicate KDS tickets
+      if (socket) {
+        socket.emit('order-placed', orderPayload);
+      }
+
+      confirmedOrders.push(...roundItems);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedOrders));
+
+      cart = {};
+      updateCartUI();
+      renderMenuItems();
+      renderCartModalList();
+
+      showToast(`Round ${orderPayload.round} sent to kitchen!`, 'fa-solid fa-fire-burner');
+      closeTabModal();
+    }
+
+    function requestFinalBill() {
+      const totalItems = [...confirmedOrders];
+      for (let id in cart) {
+        const item = MENU_ITEMS.find(m => m.id === id);
+        if (item) {
+          totalItems.push({ name: item.name, price: item.price, qty: cart[id] });
+        }
+      }
+
+      if (totalItems.length === 0) {
+        showToast(`No active orders on Table ${CURRENT_TABLE_ID}.`, 'fa-solid fa-circle-info');
+        return;
+      }
+
+      const subtotal = totalItems.reduce((acc, i) => acc + (i.price * i.qty), 0);
+      const grandTotal = (subtotal * 1.05).toFixed(2);
+
+      if (socket) {
+        socket.emit('request-bill', {
+          table: `Table ${CURRENT_TABLE_ID}`,
+          tableId: CURRENT_TABLE_ID,
+          total: grandTotal,
+          items: totalItems
+        });
+      }
+
+      const upiId = "hotel.triveni@upi";
+      const payeeName = "Hotel Triveni";
+      const note = `Table ${CURRENT_TABLE_ID} Dining Bill`;
+
+      activeUpiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${grandTotal}&cu=INR&tn=${encodeURIComponent(note)}`;
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(activeUpiUrl)}`;
+
+      const deepLinkBtn = document.getElementById('directUpiDeepLinkBtn');
+      if (deepLinkBtn) deepLinkBtn.href = activeUpiUrl;
+
+      document.getElementById('customerUpiQrImage').src = qrCodeUrl;
+      document.getElementById('customerPayAmount').innerText = `₹${grandTotal}`;
+      document.getElementById('customerPayTableStation').innerText = CURRENT_TABLE_NAME;
+
+      closeTabModal();
+      document.getElementById('customerPayModal').classList.remove('hidden');
+
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        setTimeout(() => {
+          window.location.href = activeUpiUrl;
+        }, 350);
+      }
+    }
+
+    function launchUpiIntent(app) {
+      if (!activeUpiUrl) return;
+      window.location.href = activeUpiUrl;
+    }
+
+    function closeCustomerPayModal() {
+      document.getElementById('customerPayModal').classList.add('hidden');
+    }
+
+    function confirmCustomerPaid(method = 'UPI') {
+      if (socket) {
+        socket.emit('pay-bill', {
+          tableId: CURRENT_TABLE_ID,
+          method: method
+        });
+      }
+      closeCustomerPayModal();
+      showToast('Payment submitted! Thank you for dining at Hotel Triveni.', 'fa-solid fa-heart');
+      
+      localStorage.removeItem(STORAGE_KEY);
+      confirmedOrders = [];
+      cart = {};
+      updateCartUI();
+      renderMenuItems();
+    }
+
+    function requestCashPayment() {
+      if (socket) {
+        socket.emit('request-cash-payment', {
+          tableId: CURRENT_TABLE_ID,
+          table: `Table ${CURRENT_TABLE_ID}`,
+          total: document.getElementById('customerPayAmount').innerText
+        });
+      }
+      closeCustomerPayModal();
+      showToast(`Captain notified to collect cash at Table ${CURRENT_TABLE_ID}!`, 'fa-solid fa-money-bill-wave');
+    }
+
+    function openWifiModal() { document.getElementById('wifiModal').classList.remove('hidden'); }
+    function closeWifiModal() { document.getElementById('wifiModal').classList.add('hidden'); }
+
+    function copyWifiPassword() {
+      const password = "Triveni@PureVeg";
+      const dummy = document.createElement("textarea");
+      document.body.appendChild(dummy);
+      dummy.value = password;
+      dummy.select();
+      document.execCommand("copy");
+      document.body.removeChild(dummy);
+      showToast('Wi-Fi Password copied to clipboard!', 'fa-solid fa-clipboard-check');
+      closeWifiModal();
+    }
+
+    function showToast(message, iconClass = 'fa-solid fa-circle-check') {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMsg').innerText = message;
+      document.getElementById('toastIcon').className = `${iconClass} text-emerald-400`;
+
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-[-20px]');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-[-20px]');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 3000);
+    }
+
+    // GAME 1: MEMORY GAME
+    const CARD_ICONS = ['🥞', '🧈', '🍱', '🥘', '🍉', '☕'];
+    let memoryDeck = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+
+    function initMemoryGame() {
+      memoryDeck = [...CARD_ICONS, ...CARD_ICONS].sort(() => 0.5 - Math.random());
+      flippedCards = [];
+      matchedPairs = 0;
+      document.getElementById('memoryScore').innerText = `Pairs: 0/${CARD_ICONS.length}`;
+
+      const grid = document.getElementById('memoryGrid');
+      grid.innerHTML = '';
+
+      memoryDeck.forEach((icon, index) => {
+        const card = document.createElement('div');
+        card.className = "memory-card h-16 cursor-pointer";
+        card.innerHTML = `
+          <div class="memory-inner relative w-full h-full rounded-xl" id="mem-${index}" onclick="flipMemoryCard(${index})">
+            <div class="memory-front absolute inset-0 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center text-amber-400 font-bold text-sm shadow">
+              <i class="fa-solid fa-leaf text-xs text-emerald-400"></i>
+            </div>
+            <div class="memory-back absolute inset-0 bg-gradient-to-br from-amber-500/20 to-slate-900 border border-amber-500 rounded-xl flex items-center justify-center text-2xl shadow">
+              ${icon}
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function flipMemoryCard(index) {
+      if (flippedCards.length === 2) return;
+      const cardInner = document.getElementById(`mem-${index}`);
+      if (cardInner.classList.contains('flipped') || cardInner.dataset.matched === "true") return;
+
+      cardInner.classList.add('flipped');
+      flippedCards.push({ index, icon: memoryDeck[index] });
+
+      if (flippedCards.length === 2) {
+        if (flippedCards[0].icon === flippedCards[1].icon) {
+          matchedPairs++;
+          document.getElementById(`mem-${flippedCards[0].index}`).dataset.matched = "true";
+          document.getElementById(`mem-${flippedCards[1].index}`).dataset.matched = "true";
+          document.getElementById('memoryScore').innerText = `Pairs: ${matchedPairs}/${CARD_ICONS.length}`;
+          flippedCards = [];
+
+          if (matchedPairs === CARD_ICONS.length) {
+            setTimeout(() => {
+              showToast('Super memory! You cleared the game!', 'fa-solid fa-trophy');
+            }, 300);
+          }
+        } else {
+          setTimeout(() => {
+            document.getElementById(`mem-${flippedCards[0].index}`).classList.remove('flipped');
+            document.getElementById(`mem-${flippedCards[1].index}`).classList.remove('flipped');
+            flippedCards = [];
+          }, 800);
+        }
+      }
+    }
+
+    // GAME 2: LUCKY WHEEL
+    const wheelSegments = ["10% Off Drinks", "Free Extra Sambar", "Chef Butter Naan", "Filter Coffee Special", "Special Gulab Jamun", "5% Off Total Bill"];
+    const wheelColors = ["#B45309", "#065F46", "#D97706", "#047857", "#F59E0B", "#10B981"];
+    let isSpinning = false;
+    let currentAngle = 0;
+
+    function drawWheel() {
+      const canvas = document.getElementById('wheelCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+      const radius = width / 2;
+      const arc = (2 * Math.PI) / wheelSegments.length;
+
+      ctx.clearRect(0, 0, width, height);
+
+      wheelSegments.forEach((text, i) => {
+        const angle = currentAngle + i * arc;
+        ctx.beginPath();
+        ctx.fillStyle = wheelColors[i];
+        ctx.moveTo(radius, radius);
+        ctx.arc(radius, radius, radius - 4, angle, angle + arc);
+        ctx.lineTo(radius, radius);
+        ctx.fill();
+        ctx.strokeStyle = '#0E1116';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(radius, radius);
+        ctx.rotate(angle + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 9px 'Plus Jakarta Sans'";
+        ctx.fillText(text, radius - 15, 3);
+        ctx.restore();
+      });
+
+      ctx.beginPath();
+      ctx.arc(radius, radius, 16, 0, 2 * Math.PI);
+      ctx.fillStyle = '#0E1116';
+      ctx.fill();
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#F59E0B';
+      ctx.font = "bold 11px fontawesome";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🍲', radius, radius);
+    }
+
+    function spinWheel() {
+      if (isSpinning) return;
+      isSpinning = true;
+      document.getElementById('wheelResult').innerText = "Wheel spinning...";
+
+      const spinDuration = 3500;
+      const startAngle = currentAngle;
+      const randomExtraSpins = 5 + Math.random() * 5;
+      const targetAngle = startAngle + randomExtraSpins * 2 * Math.PI;
+      const startTime = performance.now();
+
+      function animateWheel(time) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / spinDuration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        currentAngle = startAngle + (targetAngle - startAngle) * easeOut;
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animateWheel);
+        } else {
+          isSpinning = false;
+          const normalized = (2 * Math.PI - (currentAngle % (2 * Math.PI))) % (2 * Math.PI);
+          const segmentAngle = (2 * Math.PI) / wheelSegments.length;
+          const winningIndex = Math.floor(((normalized + 1.5 * Math.PI) % (2 * Math.PI)) / segmentAngle);
+          const prize = wheelSegments[winningIndex] || wheelSegments[0];
+          document.getElementById('wheelResult').innerHTML = `🎉 Won: <span class="text-amber-400 font-extrabold">${prize}</span> (Show to Captain!)`;
+          showToast(`Wheel Result: ${prize}!`, 'fa-solid fa-gift');
+        }
+      }
+
+      requestAnimationFrame(animateWheel);
+    }
+  </script>
+</body>
+</html>
