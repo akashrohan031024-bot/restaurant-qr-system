@@ -191,6 +191,7 @@ io.on('connection', (socket) => {
       table.status = 'paid';
       table.billRequested = false;
       table.cashRequested = false;
+      io.emit('table-paid', { tableId: id, method: method}); // 'upi' or 'cash'
 
       const allItems = table.orders.flatMap(o => o.items);
       const itemsSummary = allItems
