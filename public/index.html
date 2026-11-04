@@ -533,12 +533,12 @@
       socket.on('tables-sync', (allTables) => {
         if (!allTables) return;
         const currentTableData = allTables[CURRENT_TABLE_ID];
-        if (currentTableData && (currentTableData.status === 'idle' || currentTableData.total === 0 || currentTableData.orders.length === 0)) {
-          if (confirmedOrders.length > 0) {
-            clearCustomerSession();
-          }
-        }
-      });
+        if (currentTableData && currentTableData.status === 'idle')
+        {
+          clearCustomerSession();
+         }
+         });
+         
 
       // REAL-TIME LISTENER: Triggered when Cash/UPI payment is confirmed by Floor staff
       socket.on(`table-paid-${CURRENT_TABLE_ID}`, () => {
