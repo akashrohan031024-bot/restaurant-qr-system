@@ -537,9 +537,11 @@
     });;   
 
       // REAL-TIME LISTENER: Triggered when Cash/UPI payment is confirmed by Floor staff
-      socket.on(`table-paid-${CURRENT_TABLE_ID}`, () => {
+   socket.on('table-paid', (data) => {
+    if (data && parseInt(data.tableId) === parseInt(CURRENT_TABLE_ID)) {
         clearCustomerSession('Payment confirmed by floor staff! Tab cleared.');
-      });
+    }
+});
 
       // REAL-TIME LISTENER: Table reset by Floor staff
       socket.on(`session-reset-${CURRENT_TABLE_ID}`, () => {
