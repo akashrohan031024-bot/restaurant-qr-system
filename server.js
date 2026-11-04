@@ -103,7 +103,7 @@ io.on('connection', (socket) => {
       io.emit('table-updated', { tableId, table });
       io.emit('tables-sync', tables);
 
-      console.log(`[ORDER DISPATCHED] ${newOrder.table} - Order ${newOrder.orderId}: ${newOrder.items.length} items`);
+      console.log(`[ORDER DISPATCHED] ${newOrder.table} Order ${newOrder.orderId}: ${newOrder.items.length} items`);
     } catch (err) {
       console.error("Order processing error:", err);
     }
@@ -201,7 +201,15 @@ io.on('connection', (socket) => {
         tableId: id, 
         message: `Table ${id} paid ₹${finalAmount} via ${method || 'UPI'}!` 
       });
-      io.emit(`table-paid-${id}`);
+
+      // Reset internal table state
+      table.total = 0;
+      table.orders = [];
+
+      // Broadcast clearing events to customer and floor screens
+      io.emit(`table-paid-${id}`, { method: method || 'CASH' });
+      io.emit(`session-reset-${id}`);
+      io.emit('table-cleared', { tableId: id });
       io.emit('tables-sync', tables);
     }
   });
@@ -222,9 +230,12 @@ io.on('connection', (socket) => {
 
   // Reset Table
   socket.on('reset-table', ({ tableId }) => {
-    if (tables[tableId]) {
-      tables[tableId] = { status: 'idle', total: 0, orders: [], waiterCalled: false, billRequested: false, cashRequested: false, paid: false };
-      io.emit(`session-reset-${tableId}`);
+    const id = tableId || 1;
+    if (tables[id]) {
+      tables[id] = { status: 'idle', total: 0, orders: [], waiterCalled: false, billRequested: false, cashRequested: false, paid: false };
+      io.emit(`session-reset-${id}`);
+      io.emit(`table-paid-${id}`, { method: 'RESET' });
+      io.emit('table-cleared', { tableId: id });
       io.emit('tables-sync', tables);
     }
   });
