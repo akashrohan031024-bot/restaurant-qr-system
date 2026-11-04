@@ -529,16 +529,13 @@
         socket.emit('get-table-status', { tableId: CURRENT_TABLE_ID });
       });
 
-      // AUTO-PURGE LISTENER: Sync with server. If table is available/idle/total=0, clear local cache.
-      socket.on('tables-sync', (allTables) => {
-        if (!allTables) return;
-        const currentTableData = allTables[CURRENT_TABLE_ID];
-        if (currentTableData && currentTableData.status === 'idle')
-        {
-          clearCustomerSession();
-         }
-         });
-         
+    // AUTO-PURGE LISTENER: Sync with server. If table is available/idle, clear customer session
+    socket.on('tables-sync', (allTables) => {
+        const table = allTables?.[CURRENT_TABLE_ID];
+        if (table && (table.status === 'idle' || table.status === 'available')) {
+            clearCustomerSession('Table is now available. Session cleared.');
+        }
+    });   
 
       // REAL-TIME LISTENER: Triggered when Cash/UPI payment is confirmed by Floor staff
       socket.on(`table-paid-${CURRENT_TABLE_ID}`, () => {
