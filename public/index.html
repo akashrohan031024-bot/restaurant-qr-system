@@ -216,7 +216,7 @@
     <div id="viewContainer" class="flex-1 flex flex-col">
       <section id="menuView" class="flex-1 flex flex-col">
         
-        <!-- CATEGORY TABS -->
+        <!-- CATEGORY TABS (ALL 7 CATEGORIES INCLUDED) -->
         <div class="sticky top-[57px] z-20 bg-[#0E1116]/95 backdrop-blur-md px-4 py-2 border-y border-[#21262D]">
           <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
             <button onclick="filterCategory('all')" id="tab-all" class="category-btn active px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-amber-500 text-black shadow-md shadow-amber-500/20 transition">
@@ -228,6 +228,12 @@
             <button onclick="filterCategory('main')" id="tab-main" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
               🥘 Main Course
             </button>
+            <button onclick="filterCategory('soups')" id="tab-soups" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
+              🥣 Soups & Salads
+            </button>
+            <button onclick="filterCategory('tandoor')" id="tab-tandoor" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
+              🫓 Tandoor & Breads
+            </button>
             <button onclick="filterCategory('rice')" id="tab-rice" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
               🍚 Rice Items
             </button>
@@ -235,7 +241,7 @@
               🍜 Chinese & Fast
             </button>
             <button onclick="filterCategory('continental')" id="tab-continental" class="category-btn px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition">
-              🍕 Continental & Pasta
+              🍕 Continental
             </button>
           </div>
         </div>
@@ -243,7 +249,7 @@
         <div class="px-4 pt-3 pb-1">
           <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
-            <input type="text" id="menuSearch" oninput="handleMenuSearch()" placeholder="Search Masala Dose, Paneer, Rice, Pizza..." 
+            <input type="text" id="menuSearch" oninput="handleMenuSearch()" placeholder="Search Paneer, Naan, Soup, Dose, Fried Rice..." 
                    class="w-full bg-[#161B22] border border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition">
             <button onclick="clearSearch()" id="clearSearchBtn" class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs">
               <i class="fa-solid fa-xmark"></i>
@@ -442,7 +448,8 @@
         </div>
 
         <div class="space-y-2">
-          <button onclick="confirmCustomerPaid('UPI')" class="w-full py-2.5 rounded-xl gold-gradient-bg text-black font-extrabold text-xs shadow-md shadow-amber-500/25 active:scale-95 transition flex items-center justify-center gap-1.5">
+          <!-- "I Completed Payment in App" BUTTON (Notifies cashier, does not force local clear) -->
+          <button onclick="notifyPaymentCompletedInApp()" class="w-full py-2.5 rounded-xl gold-gradient-bg text-black font-extrabold text-xs shadow-md shadow-amber-500/25 active:scale-95 transition flex items-center justify-center gap-1.5">
             <i class="fa-solid fa-circle-check"></i> I Completed Payment in App
           </button>
 
@@ -451,7 +458,7 @@
           </button>
         </div>
 
-        <p class="text-[10px] text-slate-500 mt-2">Floor captain will verify and hand over the printed receipt.</p>
+        <p class="text-[10px] text-slate-500 mt-2">Cashier will verify and confirm settlement on POS.</p>
       </div>
     </div>
 
@@ -529,17 +536,25 @@
         socket.emit('get-table-status', { tableId: CURRENT_TABLE_ID });
       });
 
-    // AUTO-PURGE LISTENER: Sync with server. If table is available/idle, clear customer session
-    socket.on(`table-status-${CURRENT_TABLE_ID}`, (data) => {
+      // AUTO-PURGE LISTENER: Sync with server. If table is available/idle, clear customer session
+      socket.on(`table-status-${CURRENT_TABLE_ID}`, (data) => {
         if (data && (data.status === 'idle' || data.status === 'available')) {
-            clearCustomerSession('Table is now available. Session cleared.');
+          clearCustomerSession('Table is now available. Session cleared.');
         }
-    });;   
+      });
 
-      // REAL-TIME LISTENER: Triggered when Cash/UPI payment is confirmed by Floor staff
-  socket.on('table-paid', (data) => {
-    clearCustomerSession('Payment confirmed! Tab cleared.');
-});
+      // REAL-TIME LISTENER: Triggered ONLY when cashier confirms settlement on Floor POS
+      socket.on('table-paid', (data) => {
+        if (!data || parseInt(data.tableId) === CURRENT_TABLE_ID) {
+          clearCustomerSession('Payment confirmed by cashier! Tab cleared.');
+        }
+      });
+
+      socket.on('confirm-settlement', (data) => {
+        if (data && parseInt(data.tableId) === CURRENT_TABLE_ID) {
+          clearCustomerSession('Bill paid and verified! Thank you for dining with us.');
+        }
+      });
 
       // REAL-TIME LISTENER: Table reset by Floor staff
       socket.on(`session-reset-${CURRENT_TABLE_ID}`, () => {
@@ -625,6 +640,28 @@
       { id: 'm33', name: 'Nizami Haandi', category: 'main', price: 160, desc: 'Mixed vegetables and spinach cooked in an earthen clay pot style.', badge: 'Traditional', rating: '4.8', image: 'All Dieshes/Main Course/Nizami Haandi.jpg', icon: '🍲' },
       { id: 'm34', name: 'Channa Masala', category: 'main', price: 180, desc: 'White chickpeas simmered in a spiced Punjabi tea-infused gravy.', badge: 'Tangy', rating: '4.7', image: 'All Dieshes/Main Course/Channa Masala.jpg', icon: '🫘' },
 
+      // SOUPS & SALADS (FROM FOLDER)
+      { id: 'sp1', name: 'Tomato Soup', category: 'soups', price: 90, desc: 'Silky ripe tomato puree finished with fresh cream and crispy bread croutons.', badge: 'Classic', rating: '4.7', image: 'All Dieshes/Soups & Salads/Tomato Soup.jpg', icon: '🥣' },
+      { id: 'sp2', name: 'Veg Manchow Soup', category: 'soups', price: 110, desc: 'Spicy Indo-Chinese dark soup infused with garlic, ginger, and crunchy fried noodles.', badge: 'Hot & Spicy', rating: '4.8', image: 'All Dieshes/Soups & Salads/Veg Manchow Soup.jpg', icon: '🥣' },
+      { id: 'sp3', name: 'Sweet Corn Veg Soup', category: 'soups', price: 110, desc: 'Comforting creamy sweet corn soup blended with tender garden vegetables.', badge: 'Mild', rating: '4.7', image: 'All Dieshes/Soups & Salads/Sweet Corn Veg Soup.jpg', icon: '🌽' },
+      { id: 'sp4', name: 'Hot and Sour Soup', category: 'soups', price: 110, desc: 'Tangy and spicy thick broth packed with mushrooms, carrots, and tofu.', badge: 'Zesty', rating: '4.7', image: 'All Dieshes/Soups & Salads/Hot and Sour Soup.jpg', icon: '🥣' },
+      { id: 'sp5', name: 'Veg Clear Soup', category: 'soups', price: 95, desc: 'Nutritious delicate broth infused with fresh celery, spring onions, and pepper.', badge: 'Healthy', rating: '4.6', image: 'All Dieshes/Soups & Salads/Veg Clear Soup.jpg', icon: '🥣' },
+      { id: 'sp6', name: 'Green Salad', category: 'soups', price: 65, desc: 'Crisp garden-fresh cucumber slices, carrots, tomatoes, onions, and lemon wedges.', badge: 'Fresh', rating: '4.6', image: 'All Dieshes/Soups & Salads/Green Salad.jpg', icon: '🥗' },
+      { id: 'sp7', name: 'Cucumber Salad', category: 'soups', price: 60, desc: 'Cooling sliced cucumbers tossed with sea salt, crushed pepper, and lemon.', badge: 'Cooling', rating: '4.5', image: 'All Dieshes/Soups & Salads/Cucumber Salad.jpg', icon: '🥒' },
+
+      // TANDOOR & BREADS (FROM FOLDER)
+      { id: 'tb1', name: 'Roti', category: 'tandoor', price: 25, desc: 'Clay oven roasted whole wheat flatbread.', badge: 'Standard', rating: '4.6', image: 'All Dieshes/Tandoor & Breads/Roti.jpg', icon: '🫓' },
+      { id: 'tb2', name: 'Butter Roti', category: 'tandoor', price: 30, desc: 'Tandoor-baked whole wheat flatbread slathered with pure butter.', badge: 'Popular', rating: '4.8', image: 'All Dieshes/Tandoor & Breads/Butter Roti.jpg', icon: '🧈' },
+      { id: 'tb3', name: 'Naan', category: 'tandoor', price: 40, desc: 'Soft and chewy clay oven baked refined flour flatbread.', badge: 'Traditional', rating: '4.7', image: 'All Dieshes/Tandoor & Breads/Naan.jpg', icon: '🫓' },
+      { id: 'tb4', name: 'Butter Naan', category: 'tandoor', price: 50, desc: 'Traditional pillowy naan brushed with aromatic melted dairy butter.', badge: 'Top Seller', rating: '4.9', image: 'All Dieshes/Tandoor & Breads/Butter Naan.jpg', icon: '🧈' },
+      { id: 'tb5', name: 'Garlic Naan', category: 'tandoor', price: 65, desc: 'Clay oven baked naan topped with roasted minced garlic and fresh cilantro.', badge: 'Chef Special', rating: '4.9', image: 'All Dieshes/Tandoor & Breads/Garlic Naan.jpg', icon: '🧄' },
+      { id: 'tb6', name: 'Cheese Garlic Naan', category: 'tandoor', price: 90, desc: 'Tandoori naan stuffed with melted cheese and coated in roasted garlic butter.', badge: 'Cheesy', rating: '4.9', image: 'All Dieshes/Tandoor & Breads/Cheese Garlic Naan.jpg', icon: '🧀' },
+      { id: 'tb7', name: 'Kulcha', category: 'tandoor', price: 45, desc: 'Soft leavened bread baked crisp in the tandoor with sesame seeds.', badge: 'Fluffy', rating: '4.7', image: 'All Dieshes/Tandoor & Breads/Kulcha.jpg', icon: '🫓' },
+      { id: 'tb8', name: 'Butter Kulcha', category: 'tandoor', price: 55, desc: 'Layered tandoor-baked kulcha topped with pure butter.', badge: 'Rich', rating: '4.8', image: 'All Dieshes/Tandoor & Breads/Butter Kulcha.jpg', icon: '🧈' },
+      { id: 'tb9', name: 'Tandoori Paratha', category: 'tandoor', price: 50, desc: 'Multi-layered flaky whole wheat bread baked crisp in the tandoor oven.', badge: 'Flaky', rating: '4.7', image: 'All Dieshes/Tandoor & Breads/Tandoori Paratha.jpg', icon: '🫓' },
+      { id: 'tb10', name: 'Aloo Paratha (Tandoor)', category: 'tandoor', price: 75, desc: 'Whole wheat bread stuffed with seasoned mashed potatoes and spices.', badge: 'Stuffed', rating: '4.8', image: 'All Dieshes/Tandoor & Breads/Aloo Paratha.jpg', icon: '🥔' },
+      { id: 'tb11', name: 'Paneer Tikka (Tandoori)', category: 'tandoor', price: 190, desc: 'Cottage cheese skewers marinated in spiced hung curd and roasted over hot coals.', badge: 'Tandoori Star', rating: '4.9', image: 'All Dieshes/Tandoor & Breads/Paneer Tikka.jpg', icon: '🍢' },
+
       // RICE ITEMS
       { id: 'r1', name: 'Curd Rice', category: 'rice', price: 70, desc: 'Tempered curd rice with mustard seeds, curry leaves, and pomegranate.', badge: 'Cooling', rating: '4.8', image: 'All Dieshes/Rice Items/Curd Rice.jpg', icon: '🍚' },
       { id: 'r2', name: 'Lemon Rice', category: 'rice', price: 80, desc: 'Steamed rice tossed with fresh lemon juice, roasted peanuts, and spices.', badge: 'Tangy', rating: '4.6', image: 'All Dieshes/Rice Items/Lemon Rice.jpg', icon: '🍋' },
@@ -653,7 +690,7 @@
       { id: 'c10', name: 'Paneer Noodles', category: 'chinese', price: 140, desc: 'Stir-fried noodles combined with spiced paneer cubes.', badge: 'Rich', rating: '4.8', image: 'All Dieshes/Chinese & Fast/Paneer Noodles.jpg', icon: '🍜' },
       { id: 'c11', name: 'Triple Noodles', category: 'chinese', price: 200, desc: 'Loaded noodle dish served with crisp fried noodles and vegetable gravy.', badge: 'Heavy Meal', rating: '4.9', image: 'All Dieshes/Chinese & Fast/Triple Noodles.jpg', icon: '🍜' },
 
-      // CONTINENTAL (PIZZA, PASTA, SANDWICHES & CUTLETS)
+      // CONTINENTAL
       { id: 'cnt1', name: 'Veg Cheese Grilled Sandwich', category: 'continental', price: 100, desc: 'Triple layer sandwich packed with vegetables, cheese, and grilled golden.', badge: 'Crispy', rating: '4.8', image: 'All Dieshes/Continental/Veg Cheese Grilled Sandwich.jpg', icon: '🥪' },
       { id: 'cnt2', name: 'Pahadi Cheese Grilled Sandwich', category: 'continental', price: 110, desc: 'Grilled sandwich stuffed with spicy pahadi green chutney and cheese.', badge: 'Spicy', rating: '4.7', image: 'All Dieshes/Continental/Pahadi Cheese Grilled Sandwich.jpg', icon: '🥪' },
       { id: 'cnt3', name: 'Veg Grilled Sandwich', category: 'continental', price: 110, desc: 'Classic toasted sandwich with cucumbers, tomatoes, and potatoes.', badge: 'Toasted', rating: '4.6', image: 'All Dieshes/Continental/Veg Grilled Sandwich.jpg', icon: '🥪' },
@@ -1154,14 +1191,19 @@
       document.getElementById('customerPayModal').classList.add('hidden');
     }
 
-    function confirmCustomerPaid(method = 'UPI') {
+    // CRITICAL: Tells floor counter the customer completed UPI, but keeps table intact until Cashier confirms
+    function notifyPaymentCompletedInApp() {
+      const amountText = document.getElementById('customerPayAmount').innerText.replace('₹', '');
       if (socket) {
-        socket.emit('pay-bill', {
+        socket.emit('customer-paid-notification', {
           tableId: CURRENT_TABLE_ID,
-          method: method
+          table: CURRENT_TABLE_NAME,
+          amount: parseFloat(amountText) || 0,
+          method: 'UPI-App'
         });
       }
-      clearCustomerSession('Payment submitted! Thank you for dining at Hotel Triveni.');
+      closeCustomerPayModal();
+      showToast('Payment submitted! Waiting for cashier confirmation...', 'fa-solid fa-clock');
     }
 
     function requestCashPayment() {

@@ -26,7 +26,6 @@
       position: relative;
     }
 
-    /* Ambient Hotel Triveni Watermark Emblem */
     body::before {
       content: '🪷';
       position: fixed;
@@ -47,7 +46,6 @@
       margin: 0 auto;
     }
 
-    /* Top Header Bar */
     .top-stats {
       display: flex;
       justify-content: space-between;
@@ -127,7 +125,6 @@
     .metric-badge .val { font-size: 16px; font-weight: 800; color: #f59e0b; }
     .metric-badge .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
 
-    /* Tables Layout Grid */
     .layout-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
@@ -153,6 +150,7 @@
     .table-pod.calling { border-color: #f59e0b; animation: ring 1s infinite alternate; }
     .table-pod.bill-alert { border-color: #ef4444; animation: billGlow 0.8s infinite alternate; }
     .table-pod.cash-alert { border-color: #10b981; animation: cashGlow 0.8s infinite alternate; }
+    .table-pod.paid-verify { border-color: #facc15; animation: ring 1s infinite alternate; }
     .table-pod.paid { border-color: #10b981; }
 
     @keyframes ring { from { box-shadow: 0 0 2px #f59e0b; } to { box-shadow: 0 0 20px #f59e0b; } }
@@ -171,6 +169,7 @@
     .badge-calling { background: rgba(120, 53, 15, 0.7); color: #fde68a; border: 1px solid #f59e0b; }
     .badge-bill { background: rgba(127, 29, 29, 0.7); color: #fca5a5; border: 1px solid #ef4444; }
     .badge-cash { background: rgba(6, 78, 59, 0.7); color: #6ee7b7; border: 1px solid #10b981; }
+    .badge-verify { background: rgba(161, 98, 7, 0.8); color: #fef08a; border: 1px solid #facc15; }
     .badge-paid { background: rgba(6, 78, 59, 0.7); color: #6ee7b7; border: 1px solid #10b981; }
 
     .btn {
@@ -188,7 +187,6 @@
     }
     .btn:active { transform: scale(0.96); }
 
-    /* Staff Notification Banner */
     #staff-notification-banner {
       position: fixed;
       top: 24px;
@@ -355,6 +353,17 @@
       setTimeout(() => { banner.style.display = 'none'; }, 8000);
     }
 
+    // Handles customer stating they paid in-app (UPI)
+    socket.on('customer-paid-notification', (data) => {
+      playNotificationChime('bill');
+      showBanner(`Table ${data.tableId || data.table}: Customer claims paid ₹${data.amount} via UPI! Check bank SMS & confirm.`, 'bill');
+      
+      const card = document.getElementById(`table-card-${data.tableId}`);
+      if (card) {
+        card.classList.add('paid-verify');
+      }
+    });
+
     socket.on('tables-sync', (tables) => {
       const container = document.getElementById('tablesContainer');
       container.innerHTML = '';
@@ -371,7 +380,11 @@
         let badgeLabel = 'Available';
         let badgeClass = 'badge-free';
 
-        if (t.cashRequested) {
+        if (t.customerClaimedPaid) {
+          statusClass = 'paid-verify';
+          badgeLabel = 'Verify App UPI ✓';
+          badgeClass = 'badge-verify';
+        } else if (t.cashRequested) {
           statusClass = 'cash-alert';
           badgeLabel = '💵 Collect Cash!';
           badgeClass = 'badge-cash';
@@ -406,14 +419,14 @@
           </div>
 
           <div style="font-size:28px; font-weight:800; margin-bottom:6px; color: ${t.total > 0 ? '#f59e0b' : '#64748b'};">
-            ₹${t.total.toFixed(2)}
+            ₹${(t.total || 0).toFixed(2)}
           </div>
           <div style="font-size:12px; color:#94a3b8; margin-bottom:16px;">
             <i class="fa-solid fa-clock-rotate-left"></i> ${t.orders ? t.orders.length : 0} rounds placed
           </div>
 
           <div style="display:flex; flex-direction:column; gap:8px;">
-            ${(t.billRequested || t.cashRequested || t.total > 0) ? `
+            ${(t.billRequested || t.cashRequested || t.customerClaimedPaid || t.total > 0) ? `
               <button class="btn" style="background:#10b981; color:#000;" onclick="openPaymentScannerModal(${id},${t.total})">
                 <i class="fa-solid fa-qrcode"></i> Settle Payment (UPI / Cash)
               </button>
@@ -449,7 +462,7 @@
     function dismissWaiter(id) { socket.emit('dismiss-waiter', { tableId: id }); }
     
     function resetTable(id) { 
-      if (confirm(`Reset Table ${id}? This will clear open orders.`)) {
+      if (confirm(`Reset Table ${id}? This will clear open orders and wipe the customer screen.`)) {
         socket.emit('reset-table', { tableId: id }); 
       }
     }
@@ -475,7 +488,7 @@
               Hotel Triveni Settlement
             </div>
             <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 2px;">Table ${tableId} Bill</h3>
-            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Customer scans with PhonePe, GPay, or Paytm</p>
+            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Verify customer payment and settle</p>
             
             <div style="background: #fff; padding: 12px; border-radius: 16px; display: inline-block; margin-bottom: 12px; border: 2px solid #f59e0b;">
               <img src="${qrCodeUrl}" alt="Scan to Pay" style="width: 200px; height: 200px; display: block;" />
@@ -486,10 +499,10 @@
             <div style="font-size: 12px; color: #e2e8f0; margin-bottom: 18px;">UPI ID: <b style="color: #f59e0b;">${upiId}</b></div>
 
             <div style="display: flex; gap: 8px;">
-              <button onclick="confirmPaymentReceived(${tableId}, 'UPI')" class="btn" style="flex: 1; background: #10b981; color: #000;">
+              <button onclick="confirmPaymentReceived(${tableId}, 'UPI', ${grandTotalWithGst})" class="btn" style="flex: 1; background: #10b981; color: #000;">
                 <i class="fa-solid fa-check"></i> Paid UPI
               </button>
-              <button onclick="confirmPaymentReceived(${tableId}, 'Cash')" class="btn" style="flex: 1; background: #f59e0b; color: #000;">
+              <button onclick="confirmPaymentReceived(${tableId}, 'Cash', ${grandTotalWithGst})" class="btn" style="flex: 1; background: #f59e0b; color: #000;">
                 <i class="fa-solid fa-money-bill-wave"></i> Paid Cash
               </button>
             </div>
@@ -506,9 +519,12 @@
       document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 
-    function confirmPaymentReceived(tableId, method) {
-      socket.emit('pay-bill', { tableId: tableId, method: method });
-      alert(`Table ${tableId} settled via ${method}! Entry synced to Google Sheet.`);
+    function confirmPaymentReceived(tableId, method, totalAmount) {
+      // 1. Emit settlement event to server (wipes customer app & writes to Google Sheets)
+      socket.emit('pay-bill', { tableId: tableId, method: method, amount: totalAmount });
+      socket.emit('confirm-settlement', { tableId: tableId, method: method });
+      
+      alert(`Table ${tableId} settled via ${method}! Google Sheets updated and table cleared.`);
       const modal = document.getElementById('paymentModal');
       if (modal) modal.remove();
     }
